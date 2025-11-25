@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025 刷卡回饋小幫手 v3.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .card-checkbox:checked + div {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .category-btn.active {
+            background-color: #2563eb;
+            color: white;
+            border-color: #2563eb;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+        /* Custom scrollbar for horizontal lists */
+        .hide-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .badge-register {
+            background-color: #fff1f2;
+            color: #be123c;
+            border: 1px solid #fecdd3;
+        }
+        .badge-new {
+            background-color: #dcfce7;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+    </style>
+</head>
+<body class="text-gray-800 pb-24">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-700 to-blue-600 text-white p-4 sticky top-0 z-40 shadow-lg">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <h1 class="text-lg font-bold flex items-center">
+                <i class="fas fa-credit-card mr-2 text-yellow-300"></i>
+                <span>2025 回饋小幫手</span>
+            </h1>
+            <button onclick="toggleWallet()" class="text-xs bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full hover:bg-white/30 transition border border-white/30 flex items-center">
+                <i class="fas fa-wallet mr-1.5"></i>我的錢包
+            </button>
+        </div>
+    </header>
+
+    <div class="max-w-md mx-auto p-4">
+
+        <!-- Wallet Selection Modal (Hidden by default) -->
+        <div id="walletModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden animate-fade-in-up">
+                <div class="p-4 border-b flex justify-between items-center bg-gray-50">
+                    <h3 class="font-bold text-lg text-gray-800">選擇您持有的信用卡</h3>
+                    <button onclick="toggleWallet()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="p-4 overflow-y-auto flex-grow space-y-2" id="walletList">
+                    <!-- Cards injected by JS -->
+                </div>
+                <div class="p-4 border-t bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                    <button onclick="saveWallet()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 active:scale-[0.98] transition shadow-md">
+                        儲存並返回
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Section -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-5">
+            <label class="block text-sm font-bold text-gray-700 mb-3 flex justify-between">
+                <span>您想消費什麼？</span>
+                <span class="text-xs font-normal text-gray-400" id="searchHint">輸入商家或關鍵字</span>
+            </label>
+            <div class="relative group">
+                <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 group-focus-within:text-blue-500 transition"></i>
+                <input type="text" id="searchInput" placeholder="搜尋 (例如: 全聯, 日本, 高鐵)" 
+                       class="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition text-sm"
+                       oninput="handleSearch()">
+                <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-3 text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times-circle"></i>
+                </button>
+            </div>
+            
+            <!-- Quick Categories -->
+            <div class="mt-4">
+                <div class="flex gap-2 overflow-x-auto hide-scroll pb-2 -mx-1 px-1">
+                    <!-- New/Hot Categories -->
+                    <button onclick="selectCategory('linepay')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="linepay">
+                        <i class="fab fa-line mr-1 text-green-500"></i>LINE Pay
+                    </button>
+                    <button onclick="selectCategory('pxpay')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="pxpay">
+                        <i class="fas fa-shopping-basket mr-1 text-blue-500"></i>全聯/全支付
+                    </button>
+                    <button onclick="selectCategory('convenience')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="convenience">
+                        <i class="fas fa-store mr-1 text-orange-500"></i>超商(7-11/全家)
+                    </button>
+                    
+                    <!-- Standard Categories -->
+                     <button onclick="selectCategory('general')" class="category-btn active whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="general">
+                        <i class="fas fa-home mr-1"></i>國內一般
+                    </button>
+                    <button onclick="selectCategory('foreign')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="foreign">
+                        <i class="fas fa-globe-asia mr-1"></i>海外一般
+                    </button>
+                    <button onclick="selectCategory('japan_korea')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="japan_korea">
+                        <i class="fas fa-plane mr-1"></i>日本/韓國
+                    </button>
+                    <button onclick="selectCategory('online')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="online">
+                        <i class="fas fa-shopping-cart mr-1"></i>網購電商
+                    </button>
+                     <button onclick="selectCategory('travel')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="travel">
+                        <i class="fas fa-ticket-alt mr-1"></i>旅遊/機票
+                    </button>
+                     <button onclick="selectCategory('delivery')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="delivery">
+                        <i class="fas fa-hamburger mr-1"></i>美食外送
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations Area -->
+        <div id="resultsArea" class="space-y-4 pb-8">
+            <!-- Results injected by JS -->
+        </div>
+        
+        <!-- Info Footer -->
+        <div class="mt-8 text-center text-xs text-gray-400 pb-4">
+            <p class="mb-1">資料來源：2024年底/2025年初各大銀行公告整理。</p>
+            <p class="mb-1">⚠️ 標示「需登錄」之活動請務必點擊連結完成登錄。</p>
+            <p>實際回饋以銀行官方網站最新公告為準。</p>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. Enhanced Credit Card Data (v3.0 - Expanded) ---
+        const creditCards = [
+            // --- NEW CARDS ---
+            {
+                id: "sinopac_daway",
+                name: "永豐 DAWAY 卡",
+                bank: "永豐銀行",
+                imgColor: "bg-gradient-to-r from-green-400 to-blue-500", // Stylish gradient
+                eventUrl: "https://bank.sinopac.com/sinopacBT/personal/credit-card/introduction/bankcard/daway.html",
+                requiresReg: true, // For new user bonus usually
+                features: {
+                    general: { rate: 1, note: "LINE Points 回饋" },
+                    linepay: { rate: 3, note: "無上限！(新戶加碼可達 6%)" },
+                    foreign: { rate: 3, note: "海外實體/網購 (LINE Points)" },
+                    japan_korea: { rate: 3, note: "同海外回饋" },
+                    convenience: { rate: 0, note: "無特別回饋 (除非綁LINE Pay)" }
+                },
+                tags: ["line pay", "linepoints", "japan", "korea"]
+            },
+            {
+                id: "ts_daquanlian",
+                name: "台新 大全聯卡",
+                bank: "台新銀行",
+                imgColor: "bg-red-800", 
+                eventUrl: "https://www.taishinbank.com.tw/TSB/personal/credit/intro/overview/cg010/card001/",
+                requiresReg: false,
+                features: {
+                    general: { rate: 0.5, note: "一般消費" },
+                    pxpay: { rate: 12, note: "全聯店內最高 12% (含全支付)" }, // New high rate logic
+                    convenience: { rate: 0.5, note: "一般消費" }
+                },
+                tags: ["pxpay", "全聯", "全支付", "supermarket"]
+            },
+            {
+                id: "first_ileo",
+                name: "第一銀行 iLEO 卡",
+                bank: "第一銀行",
+                imgColor: "bg-yellow-400",
+                eventUrl: "https://card.firstbank.com.tw/sites/card/touch/1565690685468",
+                requiresReg: false,
+                features: {
+                    general: { rate: 0.5, note: "" },
+                    linepay: { rate: 4, note: "指定行動支付最高 4% (新戶可能更高)" },
+                    pxpay: { rate: 4, note: "全支付 (非全聯店內) 最高 4%" },
+                    mobile_pay: { rate: 4, note: "街口/LINE Pay/Apple Pay" }
+                },
+                tags: ["line pay", "街口", "apple pay", "google pay", "pxpay"]
+            },
+            {
+                id: "ctbc_allme",
+                name: "中信 ALL ME 卡",
+                bank: "中國信託",
+                imgColor: "bg-gray-900",
+                eventUrl: "https://www.ctbcbank.com/content/dam/minisite/long/creditcard/ALLME/index.html",
+                features: {
+                    general: { rate: 1, note: "中信點" },
+                    convenience: { rate: 3, note: "7-11/全家 (需綁 Hami Pay/Pi 錢包)" },
+                    online: { rate: 8, note: "PChome/中華電信 (最高)" },
+                    delivery: { rate: 1, note: "一般消費" }
+                },
+                tags: ["pchome", "7-11", "family mart", "pi wallet", "hami pay"]
+            },
+             {
+                id: "hsbc_cash",
+                name: "滙豐 匯鑽卡",
+                bank: "滙豐銀行",
+                imgColor: "bg-purple-700",
+                eventUrl: "https://www.hsbc.com.tw/credit-cards/products/cash-rewards-plus/",
+                features: {
+                    general: { rate: 1, note: "" },
+                    mobile_pay: { rate: 3, note: "街口/PayPal (達檻翻倍至 6%)" },
+                    online: { rate: 3, note: "指定網購 (momo/UberEats)" },
+                    delivery: { rate: 3, note: "UberEats/Foodpanda" }
+                },
+                tags: ["街口", "paypal", "momo", "ubereats", "foodpanda"]
+            },
+
+            // --- EXISTING CARDS (Enhanced tags) ---
+            {
+                id: "cathay_cube",
+                name: "國泰 CUBE 卡",
+                bank: "國泰世華",
+                imgColor: "bg-gradient-to-br from-gray-700 to-gray-900",
+                eventUrl: "https://www.cathaybk.com.tw/cathaybk/personal/product/credit-card/cards/cube/",
+                features: {
+                    general: { rate: 0.3, note: "無上限" },
+                    foreign: { rate: 3, note: "權益：趣旅行 (海外實體)" },
+                    japan_korea: { rate: 3, note: "權益：趣旅行" },
+                    online: { rate: 3, note: "權益：玩數位 (蝦皮/Momo)" },
+                    dining: { rate: 3, note: "權益：樂饗購" },
+                    travel: { rate: 3, note: "權益：趣旅行" },
+                    convenience: { rate: 3, note: "權益：集精選 (7-11/全家)" },
+                    delivery: { rate: 3, note: "權益：樂饗購" },
+                    pxpay: { rate: 2, note: "權益：集精選 (全聯/全支付)" },
+                    linepay: { rate: 2, note: "權益：LINE Pay (需選對權益)" } // Assumed promotion or general
+                },
+                tags: ["uber", "ubereats", "foodpanda", "klook", "shopee", "momo", "7-11", "全家", "全聯", "pxpay"]
+            },
+            {
+                id: "esun_unicard",
+                name: "玉山 Unicard",
+                bank: "玉山銀行",
+                imgColor: "bg-gradient-to-br from-emerald-400 to-emerald-600",
+                eventUrl: "https://www.esunbank.com.tw/bank/personal/credit-card/intro/bank-card/unicard",
+                features: {
+                    general: { rate: 1, note: "基本回饋" },
+                    foreign: { rate: 3, note: "簡單選" }, 
+                    japan_korea: { rate: 3, note: "簡單選" },
+                    online: { rate: 3.5, note: "百大特店" },
+                    linepay: { rate: 3.5, note: "指定支付 (最高)" },
+                    pxpay: { rate: 5, note: "新戶首綁全支付優惠 (限時)" }, // Special logic
+                    convenience: { rate: 1, note: "一般消費" },
+                    mobile_pay: { rate: 3.5, note: "LINE Pay/街口" }
+                },
+                tags: ["line pay", "街口", "apple pay", "全支付", "pxpay"]
+            },
+            {
+                id: "taishin_rose_sun",
+                name: "台新 太陽/玫瑰卡",
+                bank: "台新銀行",
+                imgColor: "bg-gradient-to-br from-red-500 to-red-700",
+                eventUrl: "https://www.taishinbank.com.tw/TS/TS02/TS0201/TS020101/TS02010101/TS0201010104/TS020101010409/index.htm",
+                features: {
+                    general: { rate: 0.3, note: "非指定" },
+                    japan_korea: { rate: 3.8, note: "無上限 (日韓歐美)" },
+                    convenience: { rate: 3.8, note: "權益：天天刷 (7-11/全家)" },
+                    linepay: { rate: 0.3, note: "建議用 @GoGo" }, // Low rate warning
+                    delivery: { rate: 3.8, note: "權益：天天刷" },
+                    pxpay: { rate: 0.3, note: "一般消費" }
+                },
+                tags: ["7-11", "family mart", "全家", "foodpanda", "ubereats"]
+            },
+            {
+                id: "taishin_gogo",
+                name: "台新 @GoGo 卡",
+                bank: "台新銀行",
+                imgColor: "bg-gradient-to-br from-gray-800 to-black",
+                eventUrl: "https://www.taishinbank.com.tw/TS/TS02/TS0201/TS020101/TS02010101/TS0201010104/TS020101010401/index.htm",
+                features: {
+                    general: { rate: 0.5, note: "" },
+                    online: { rate: 3.8, note: "精選網購" },
+                    linepay: { rate: 3.8, note: "精選行動支付 (上限1000點)" },
+                    pxpay: { rate: 0.5, note: "一般消費" },
+                    convenience: { rate: 0.5, note: "除非綁 LINE Pay" }
+                },
+                tags: ["line pay", "shopee", "momo"]
+            },
+            {
+                id: "fubon_j",
+                name: "富邦 J 卡",
+                bank: "台北富邦",
+                imgColor: "bg-gradient-to-br from-pink-400 to-pink-600",
+                eventUrl: "https://www.fubon.com/banking/personal/credit_card/all_card/j_card/j_card.htm",
+                requiresReg: true,
+                features: {
+                    general: { rate: 1, note: "" },
+                    japan_korea: { rate: 3, note: "日韓實體 (加碼需登錄)" },
+                    linepay: { rate: 1, note: "國內一般" }, // Changed in 2024/2025
+                    convenience: { rate: 3, note: "日韓當地超商" }
+                },
+                tags: ["japan", "korea", "line pay"]
+            },
+            {
+                id: "federal_jihe",
+                name: "聯邦 吉鶴卡",
+                bank: "聯邦銀行",
+                imgColor: "bg-gradient-to-br from-red-300 to-red-500",
+                features: {
+                    general: { rate: 1.3, note: "無上限 (需綁 NewNewBank)" },
+                    japan_korea: { rate: 3, note: "日本 (QUICPay 4.5%)" },
+                    linepay: { rate: 1.3, note: "國內一般" }
+                },
+                tags: ["quicpay", "japan", "apple pay"]
+            },
+            {
+                id: "sinopac_dawho",
+                name: "永豐 大戶卡",
+                bank: "永豐銀行",
+                imgColor: "bg-gradient-to-br from-gray-600 to-gray-800",
+                features: {
+                    general: { rate: 1, note: "" },
+                    travel: { rate: 7, note: "指定通路 (需大戶等級)" },
+                    foreign: { rate: 3, note: "需大戶等級" },
+                    linepay: { rate: 1, note: "一般消費" }
+                },
+                tags: ["travel", "foodpanda", "ubereats"]
+            },
+            {
+                id: "dbs_eco",
+                name: "星展 eco 永續卡",
+                bank: "星展銀行",
+                imgColor: "bg-gradient-to-br from-green-500 to-green-700",
+                features: {
+                    general: { rate: 1.5, note: "無上限" },
+                    foreign: { rate: 5, note: "指定國家實體" }
+                },
+                tags: ["tesla", "gogoro", "singapore"]
+            }
+        ];
+
+        // --- 2. State Management ---
+        // Initialize with ALL cards for the first time if no legacy data
+        // If legacy data exists but doesn't have new cards, we append new IDs to it
+        const allCardIds = creditCards.map(c => c.id);
+        let storedWallet = JSON.parse(localStorage.getItem('myWallet'));
+        
+        // Simple logic to ensure new users get all cards checked by default, or merge for existing
+        let userWallet;
+        if (!storedWallet) {
+            userWallet = allCardIds;
+        } else {
+            // Keep user's choices but you might want to auto-add new cards? 
+            // For this demo, let's just use what they had. User can add new ones in modal.
+            userWallet = storedWallet;
+        }
+
+        let currentCategory = 'general';
+        let currentSearch = '';
+
+        // --- 3. DOM Elements ---
+        const walletModal = document.getElementById('walletModal');
+        const walletList = document.getElementById('walletList');
+        const resultsArea = document.getElementById('resultsArea');
+        const searchInput = document.getElementById('searchInput');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        const categoryBtns = document.querySelectorAll('.category-btn');
+
+        // --- 4. Initialization ---
+        function init() {
+            renderWalletList();
+            calculateAndRender();
+        }
+
+        // --- 5. Logic: Calculate Best Cards ---
+        function calculateAndRender() {
+            let results = [];
+
+            // Filter by ownership
+            const myCards = creditCards.filter(card => userWallet.includes(card.id));
+
+            myCards.forEach(card => {
+                let score = 0;
+                let note = "";
+                let isRelevant = false;
+
+                // Priority 1: Search Keyword Match
+                if (currentSearch) {
+                    const searchLower = currentSearch.toLowerCase();
+                    const tagMatch = card.tags && card.tags.some(tag => tag.includes(searchLower));
+                    const nameMatch = card.name.toLowerCase().includes(searchLower);
+                    
+                    if (tagMatch || nameMatch) {
+                        isRelevant = true;
+                        // Keyword Logic Mapping
+                        if (['line', 'line pay', 'linepay'].some(k => searchLower.includes(k))) {
+                             if(card.features.linepay) { score = card.features.linepay.rate; note = card.features.linepay.note; }
+                             else { score = card.features.general.rate; note = card.features.general.note; }
+                        } else if (['pxpay', '全支付', '全聯', 'px'].some(k => searchLower.includes(k))) {
+                             if(card.features.pxpay) { score = card.features.pxpay.rate; note = card.features.pxpay.note; }
+                             else { score = card.features.general.rate; note = card.features.general.note; }
+                        } else if (['uber', 'foodpanda', 'ubereats', 'delivery'].some(k => searchLower.includes(k))) {
+                             if(card.features.delivery) { score = card.features.delivery.rate; note = card.features.delivery.note; }
+                             else if(card.features.online) { score = card.features.online.rate; note = card.features.online.note; }
+                             else { score = card.features.general.rate; note = card.features.general.note; }
+                        } else if (['7-11', 'family', '全家', '超商', 'mart'].some(k => searchLower.includes(k))) {
+                             if(card.features.convenience) { score = card.features.convenience.rate; note = card.features.convenience.note; }
+                             else { score = card.features.general.rate; note = card.features.general.note; }
+                        } else if (['travel', 'ticket', 'hotel', 'booking', 'agoda', 'klook', '機票', '住宿', '高鐵'].some(k => searchLower.includes(k))) {
+                             if(card.features.travel) { score = card.features.travel.rate; note = card.features.travel.note; }
+                             else if(card.features.online) { score = card.features.online.rate; note = card.features.online.note; }
+                             else { score = card.features.general.rate; note = card.features.general.note; }
+                        } else if (['shopee', 'momo', 'pchome'].some(k => searchLower.includes(k))) {
+                             if(card.features.online) { score = card.features.online.rate; note = card.features.online.note; }
+                             else { score = card.features.general.rate; note = card.features.general.note; }
+                        } else if (['japan', 'korea', 'tokyo', 'osaka', 'seoul', '日本', '韓國'].some(k => searchLower.includes(k))) {
+                             if(card.features.japan_korea) { score = card.features.japan_korea.rate; note = card.features.japan_korea.note; }
+                             else if(card.features.foreign) { score = card.features.foreign.rate; note = card.features.foreign.note; }
+                             else { score = card.features.general.rate; note = card.features.general.note; }
+                        } else {
+                            score = card.features.general.rate; 
+                            note = "符合搜尋關鍵字 (依一般回饋計算)";
+                        }
+                    }
+                } 
+                // Priority 2: Category Selection
+                else {
+                    isRelevant = true;
+                    // Direct category mapping
+                    const feat = card.features[currentCategory];
+                    if (feat) {
+                        score = feat.rate;
+                        note = feat.note;
+                    } else if (currentCategory === 'mobile_pay' && card.features.linepay) {
+                        // Fallback logic for generic mobile pay if linepay exists
+                        score = card.features.linepay.rate;
+                        note = "LINE Pay 回饋 (參考)";
+                    } else if (card.features.general) {
+                        score = card.features.general.rate;
+                        note = "無特定加碼，依一般消費";
+                    }
+                }
+
+                if (isRelevant) {
+                    results.push({ card, score, note });
+                }
+            });
+
+            // Sort by score desc
+            results.sort((a, b) => b.score - a.score);
+
+            // Empty State
+            if (results.length === 0) {
+                 resultsArea.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-6xl mb-4 grayscale opacity-50">💸</div>
+                        <h3 class="text-lg font-bold text-gray-700">找不到合適的卡片</h3>
+                        <p class="text-gray-500 text-sm mt-2">試試看不同的關鍵字，<br>或是到「我的錢包」新增更多卡片。</p>
+                        <button onclick="toggleWallet()" class="mt-6 px-6 py-2 bg-blue-100 text-blue-600 rounded-full font-bold hover:bg-blue-200 transition">
+                            管理錢包
+                        </button>
+                    </div>
+                 `;
+                 return;
+            }
+
+            // Render Results
+            let html = '';
+            results.forEach((item, index) => {
+                const isTop = index === 0;
+                // Visual styles for Top 1 vs others
+                const containerClass = isTop 
+                    ? 'border-blue-500 ring-2 ring-blue-50 shadow-lg transform scale-[1.01]' 
+                    : 'border-gray-200 hover:border-gray-300';
+                
+                const scoreColor = isTop ? 'text-red-600' : 'text-gray-700';
+                const medal = isTop ? '<i class="fas fa-crown text-yellow-400 mr-2 animate-bounce"></i>' : '';
+                
+                // Registration Badge Logic
+                let actionBtn = '';
+                let regBadge = '';
+                
+                if (item.card.requiresReg) {
+                    regBadge = `<span class="badge-register text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold"><i class="fas fa-exclamation-circle mr-1"></i>需登錄/新戶</span>`;
+                }
+
+                if (item.card.eventUrl) {
+                    actionBtn = `
+                        <a href="${item.card.eventUrl}" target="_blank" class="block w-full mt-3 text-center py-2 rounded-lg text-sm font-bold transition ${isTop ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
+                            <i class="fas fa-external-link-alt mr-1"></i> 
+                            ${item.card.requiresReg ? '前往登錄活動' : '查看官網權益'}
+                        </a>
+                    `;
+                }
+
+                html += `
+                <div class="bg-white rounded-2xl border ${containerClass} p-4 transition duration-300 relative overflow-hidden group">
+                    <div class="flex items-start">
+                        <div class="w-14 h-9 ${item.card.imgColor} rounded-md mr-4 flex-shrink-0 shadow-sm mt-1"></div>
+                        <div class="flex-grow min-w-0">
+                            <div class="flex justify-between items-start">
+                                <h3 class="font-bold text-gray-800 truncate pr-2 flex items-center">
+                                    ${medal}${item.card.name}
+                                    ${regBadge}
+                                </h3>
+                                <div class="font-black ${scoreColor} text-2xl flex-shrink-0 flex flex-col items-end leading-none">
+                                    <span>${item.score}%</span>
+                                    <span class="text-[10px] text-gray-400 font-normal mt-1">回饋率</span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mb-2">${item.card.bank}</p>
+                            <div class="bg-gray-50 rounded-lg p-2 text-sm text-gray-700 border border-gray-100">
+                                <i class="fas fa-check-circle text-green-500 mr-1.5"></i>${item.note}
+                            </div>
+                            ${actionBtn}
+                        </div>
+                    </div>
+                </div>
+                `;
+            });
+            resultsArea.innerHTML = html;
+        }
+
+        // --- 6. UI Interactions ---
+
+        function selectCategory(cat) {
+            currentCategory = cat;
+            clearSearch(false); // Clear search text but don't re-render yet
+            
+            // Visual Update
+            categoryBtns.forEach(btn => {
+                if (btn.dataset.cat === cat) {
+                    btn.classList.add('active');
+                    btn.classList.remove('border-gray-200', 'text-gray-500');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('border-gray-200', 'text-gray-500');
+                }
+            });
+
+            calculateAndRender();
+        }
+
+        function handleSearch() {
+            const val = searchInput.value.trim();
+            if (val.length > 0) {
+                currentSearch = val;
+                clearSearchBtn.classList.remove('hidden');
+                categoryBtns.forEach(btn => btn.classList.remove('active'));
+            } else {
+                currentSearch = '';
+                clearSearchBtn.classList.add('hidden');
+                updateCategoryVisuals();
+            }
+            calculateAndRender();
+        }
+
+        function clearSearch(render = true) {
+            searchInput.value = '';
+            currentSearch = '';
+            clearSearchBtn.classList.add('hidden');
+            updateCategoryVisuals();
+            if (render) calculateAndRender();
+        }
+
+        function updateCategoryVisuals() {
+             categoryBtns.forEach(btn => {
+                if (btn.dataset.cat === currentCategory) {
+                    btn.classList.add('active');
+                    btn.classList.remove('border-gray-200', 'text-gray-500');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('border-gray-200', 'text-gray-500');
+                }
+            });
+        }
+
+        // --- 7. Wallet Logic ---
+
+        function toggleWallet() {
+            const modal = document.getElementById('walletModal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function renderWalletList() {
+            let html = '';
+            // New cards on top for visibility if not owned? 
+            // Better: just list all.
+            creditCards.forEach(card => {
+                const isChecked = userWallet.includes(card.id) ? 'checked' : '';
+                html += `
+                <label class="flex items-center cursor-pointer group select-none">
+                    <input type="checkbox" class="hidden card-checkbox" value="${card.id}" ${isChecked}>
+                    <div class="flex-grow p-3 border border-gray-100 rounded-xl flex items-center transition duration-200 group-hover:bg-gray-50 hover:border-gray-300">
+                        <div class="w-10 h-6 ${card.imgColor} rounded shadow-sm mr-3"></div>
+                        <div class="flex-grow">
+                            <div class="font-bold text-sm text-gray-800">${card.name}</div>
+                            <div class="text-xs text-gray-400">${card.bank}</div>
+                        </div>
+                        <div class="w-6 h-6 rounded-full border-2 border-gray-200 flex items-center justify-center text-white transition-colors input-checked-style">
+                            <i class="fas fa-check text-xs"></i>
+                        </div>
+                    </div>
+                </label>
+                <style>
+                    .card-checkbox:checked + div .input-checked-style {
+                        background-color: #3b82f6;
+                        border-color: #3b82f6;
+                    }
+                    .card-checkbox:checked + div {
+                        background-color: #eff6ff;
+                        border-color: #bfdbfe;
+                    }
+                </style>
+                `;
+            });
+            walletList.innerHTML = html;
+        }
+
+        function saveWallet() {
+            const checkboxes = document.querySelectorAll('.card-checkbox:checked');
+            userWallet = Array.from(checkboxes).map(cb => cb.value);
+            localStorage.setItem('myWallet', JSON.stringify(userWallet));
+            toggleWallet();
+            calculateAndRender();
+        }
+
+        // Init
+        init();
+
+    </script>
+</body>
+</html>
