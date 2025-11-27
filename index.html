@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v5.5 (外資獵手版)</title>
+    <title>台股雙引擎儀表板 v5.6 (雙重備援穩定版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -23,16 +23,7 @@
         .status-tag { font-size: 0.65rem; padding: 1px 4px; border-radius: 2px; font-weight: bold; }
         .status-hot { background: linear-gradient(90deg, #be185d, #db2777); color: white; }
         
-        .foreign-hunter-tag { 
-            background: linear-gradient(90deg, #7c3aed, #db2777); 
-            color: white; 
-            font-size: 0.7rem; 
-            padding: 2px 6px; 
-            border-radius: 4px; 
-            font-weight: bold; 
-            animation: pulse 1.5s infinite; 
-            display: inline-block;
-        }
+        .foreign-hunter-tag { background: linear-gradient(90deg, #7c3aed, #db2777); color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; animation: pulse 1.5s infinite; display: inline-block; }
         @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
 
         .buy-icon { font-size: 1rem; animation: bounce 1s infinite; display: inline-block; }
@@ -81,7 +72,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v5.5 外資獵手版 | 偵測連續外盤買單</p>
+            <p class="text-slate-400 text-sm mt-1">v5.6 雙重備援版 | 解決報價失敗</p>
         </div>
         <div class="text-right"><div id="updateTime" class="text-xs text-slate-500">更新中...</div></div>
     </div>
@@ -146,7 +137,7 @@
 
         <!-- 右側 -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- 大戶雷達 (外資獵手) -->
+            <!-- 大戶雷達 -->
             <div class="card p-5 relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
                 <div class="flex justify-between items-center mb-4">
@@ -169,7 +160,7 @@
                             </tr>
                         </thead>
                         <tbody id="bigOrderBody" class="divide-y divide-slate-700">
-                            <tr><td colspan="6" class="text-center py-12 text-slate-500">正在掃描外資蹤跡 (門檻 > 50 張)...</td></tr>
+                            <tr><td colspan="6" class="text-center py-12 text-slate-500">正在掃描外資蹤跡...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -212,7 +203,6 @@
         let currentStock = null;
         let portfolio = JSON.parse(localStorage.getItem('pro_portfolio_v3')) || [];
         let lastAlertTime = 0;
-        // 紀錄每檔股票最近一次大單時間，用來判斷「連續性」
         let lastBigOrderMap = {}; 
 
         window.onload = () => {
@@ -222,40 +212,56 @@
             setInterval(scanBigOrders, 5000); 
         };
 
-        // 🔥 外資獵手核心邏輯
+        // 🔥 核心功能：雙重備援報價
+        async function fetchQuoteSafe(id) {
+            try {
+                // 優先嘗試 Fugle
+                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
+                const json = await res.json();
+                if(json.lastTrade) return { price: json.lastTrade.price, change: json.lastTrade.price - json.openPrice, pct: 0, name: json.name, unit: json.lastTrade.unit, bids: json.order?.bids, asks: json.order?.asks, source: 'Fugle' };
+                throw new Error("Fugle No Data");
+            } catch (e) {
+                console.warn(`Fugle failed for ${id}, trying backup...`);
+                // 備援：FinMind 最新收盤價 (雖非即時但不會報錯)
+                try {
+                    const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${new Date().toISOString().split('T')[0]}&token=${FINMIND_TOKEN}`);
+                    const json = await res.json();
+                    if(json.data && json.data.length > 0) {
+                        const last = json.data[json.data.length - 1];
+                        return { price: last.close, change: last.spread, pct: last.spread/last.open, name: id, unit: last.Trading_Volume/1000, source: 'FinMind' };
+                    }
+                } catch(e2) {}
+                // 最終備援：回傳假數據避免崩潰 (開發測試用)
+                return { price: 0, change: 0, pct: 0, name: id, unit: 0, source: 'None' };
+            }
+        }
+
+        // 🔥 外資獵手 (整合備援)
         async function scanBigOrders() {
             const tbody = document.getElementById('bigOrderBody');
             if(tbody.innerHTML.includes('掃描')) tbody.innerHTML = '';
             
-            const randomTargets = HOT_STOCKS_POOL.sort(() => 0.5 - Math.random()).slice(0, 5); // 每次掃 5 檔
+            const randomTargets = HOT_STOCKS_POOL.sort(() => 0.5 - Math.random()).slice(0, 5); 
             for (const id of randomTargets) {
                 try {
-                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                    const json = await res.json();
-                    const trade = json.lastTrade;
-                    
-                    if (trade && trade.unit >= 50) { // 門檻 50 張
+                    const quote = await fetchQuoteSafe(id);
+                    if (quote.source === 'Fugle' && quote.unit >= 50) { // 只在 Fugle 有即時單量時觸發
                         const now = Date.now();
                         const lastTime = lastBigOrderMap[id] || 0;
-                        const isConsecutive = (now - lastTime) < 60000; // 60秒內連續出現
+                        const isConsecutive = (now - lastTime) < 60000; 
                         lastBigOrderMap[id] = now;
 
-                        // 外盤成交佔比 > 55% (買氣強)
-                        const buyPower = (json.total.tradeVolumeAtAsk / json.total.tradeVolume) * 100;
-                        
-                        let hunterTag = '';
-                        // 如果是 連續大單 + 外盤成交，視為外資買盤
-                        if (isConsecutive && buyPower > 55) {
-                            hunterTag = `<span class="foreign-hunter-tag">🔥 外資連買</span>`;
-                            const time = new Date(json.lastUpdated / 1000).toLocaleTimeString();
-                            showAlert(`${json.name} (${id})`, trade.price, trade.unit, time, "連續買盤偵測");
+                        if (isConsecutive) {
+                            const hunterTag = `<span class="foreign-hunter-tag">🔥 外資連買</span>`;
+                            const time = new Date().toLocaleTimeString();
+                            showAlert(`${quote.name} (${id})`, quote.price, quote.unit, time, "連續買盤偵測");
                             
                             const rowHTML = `
                                 <tr class="big-order-row border-b border-slate-700 cursor-pointer hover:bg-slate-700" onclick="analyzeStock('${id}')">
                                     <td class="px-4 py-3 text-slate-400 font-mono text-xs">${time}</td>
-                                    <td class="px-4 py-3 font-bold text-white">${json.name}</td>
-                                    <td class="px-4 py-3 text-right text-yellow-400 font-bold text-lg">⚡ ${trade.unit}</td>
-                                    <td class="px-4 py-3 text-right text-white">${trade.price}</td>
+                                    <td class="px-4 py-3 font-bold text-white">${quote.name}</td>
+                                    <td class="px-4 py-3 text-right text-yellow-400 font-bold text-lg">⚡ ${quote.unit}</td>
+                                    <td class="px-4 py-3 text-right text-white">${quote.price}</td>
                                     <td class="px-4 py-3">${hunterTag}</td>
                                     <td class="px-4 py-3 text-center"><button class="text-xs bg-cyan-900 text-cyan-300 px-2 py-1 rounded">分析</button></td>
                                 </tr>`;
@@ -267,7 +273,7 @@
             }
         }
 
-        // 🔔 彈窗優化
+        // 🔔 彈窗
         function showAlert(stockName, price, vol, time, desc) {
             if (Date.now() - lastAlertTime < 5000) return;
             lastAlertTime = Date.now();
@@ -283,76 +289,107 @@
         }
         function closeAlert() { document.getElementById('bigOrderAlert').classList.add('hidden'); }
 
-        // 其他功能保持 v5.4 版本...
+        // 🔥 智能排序 (整合備援)
         async function scanTrendingStocks() {
             const tbody = document.getElementById('watchlistBody');
             const spinner = document.getElementById('scanSpinner');
             spinner.classList.remove('hidden');
+            
             const trendingList = [];
             const batch = HOT_STOCKS_POOL.sort(() => 0.5 - Math.random()).slice(0, 15);
+
             await Promise.all(batch.map(async (id) => {
                 try {
-                    const quote = await fetchFugleQuote(id);
-                    if (!quote.lastPrice) return;
+                    const quote = await fetchQuoteSafe(id);
+                    if (quote.price === 0) return; // 跳過無效數據
+                    
                     let kdjText = '-';
-                    let buyPoint = quote.lastPrice * 0.9;
+                    let buyPoint = quote.price * 0.9;
+                    
                     try {
                         const history = await fetchFinMindHistory(id);
                         const kdj = calculateKDJ(history);
                         if (kdj) kdjText = `${kdj.k.toFixed(0)}`;
                         if (history.length >= 5) buyPoint = Math.min(...history.slice(-5).map(d => d.min));
                     } catch(e) {}
-                    const score = quote.changePercent || 0;
-                    trendingList.push({ id: id, name: quote.name, price: quote.lastPrice, change: quote.changePercent, kdjText: kdjText, buyPoint: buyPoint, score: score });
+
+                    const score = quote.change || 0; // 用漲跌金額當分數
+                    
+                    trendingList.push({
+                        id: id, name: quote.name, price: quote.price, change: quote.change, kdjText: kdjText, buyPoint: buyPoint, score: score
+                    });
                 } catch (e) {}
             }));
+
             trendingList.sort((a, b) => b.score - a.score);
+
             tbody.innerHTML = '';
-            if (trendingList.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500">無資料</td></tr>'; } 
-            else {
+            if (trendingList.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500">暫無數據，請稍後再試</td></tr>';
+            } else {
                 trendingList.forEach(stock => {
                     let statusTag = '<span class="text-xs text-slate-500">盤整</span>';
-                    if (stock.score > 0.01) statusTag = '<span class="status-tag status-hot">🔥 強勢</span>';
+                    if (stock.score > 0) statusTag = '<span class="status-tag status-hot">🔥 強勢</span>';
+                    else if (stock.score < 0) statusTag = '<span class="text-xs text-green-400">修正</span>';
+
                     let signalIcon = '';
                     const diff = ((stock.price - stock.buyPoint) / stock.buyPoint * 100);
                     if (diff < 2 && diff > -2) signalIcon = '<span class="buy-icon text-yellow-400">🎯</span>';
+
                     const color = stock.change >= 0 ? 'text-profit' : 'text-loss';
-                    tbody.innerHTML += `<tr class="hover:bg-slate-700 cursor-pointer border-b border-slate-700/50" onclick="analyzeStock('${stock.id}')"><td class="px-2 py-3 font-bold text-white">${stock.name} <span class="text-[10px] text-slate-400 block">${stock.id}</span></td><td class="px-2 py-3 text-right ${color}">${stock.price}</td><td class="px-2 py-3 text-center">${statusTag}</td><td class="px-2 py-3 text-right font-mono text-xs text-slate-400">${stock.kdjText}</td><td class="px-2 py-3 text-center">${signalIcon}</td></tr>`;
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-700 cursor-pointer border-b border-slate-700/50" onclick="analyzeStock('${stock.id}')">
+                            <td class="px-2 py-3 font-bold text-white">${stock.name} <span class="text-[10px] text-slate-400 block">${stock.id}</span></td>
+                            <td class="px-2 py-3 text-right ${color}">${stock.price}</td>
+                            <td class="px-2 py-3 text-center">${statusTag}</td>
+                            <td class="px-2 py-3 text-right font-mono text-xs text-slate-400">${stock.kdjText}</td>
+                            <td class="px-2 py-3 text-center">${signalIcon}</td>
+                        </tr>`;
                 });
             }
             spinner.classList.add('hidden');
         }
+
+        // 分析功能 (整合備援)
         async function analyzeStock(inputId = null) {
             const stockId = inputId || document.getElementById('stockInput').value.trim();
             if (!stockId) return alert("請輸入代碼");
             const btn = document.querySelector('button[onclick="analyzeStock()"]');
             if(btn) btn.innerText = "...";
             try {
-                const fugleData = await fetchFugleQuote(stockId);
-                if (!fugleData || !fugleData.lastPrice) throw new Error("Fugle 報價失敗");
+                const quote = await fetchQuoteSafe(stockId);
+                if (quote.price === 0) throw new Error("無法取得報價");
+                
                 let historyData = [];
                 try { historyData = await fetchFinMindHistory(stockId); } catch (err) {}
+                
                 const kdj = calculateKDJ(historyData);
-                let buyPoint = historyData.length >= 5 ? Math.min(...historyData.slice(-5).map(d => d.min)) : fugleData.lastPrice * 0.95;
-                currentStock = { id: stockId, name: fugleData.name, price: fugleData.lastPrice, buyPoint: buyPoint, kdj: kdj };
-                updateAnalysisUI(currentStock, fugleData);
-                renderOrderBook(fugleData.bids, fugleData.asks);
+                let buyPoint = historyData.length >= 5 ? Math.min(...historyData.slice(-5).map(d => d.min)) : quote.price * 0.95;
+                
+                currentStock = { id: stockId, name: quote.name, price: quote.price, buyPoint: buyPoint, kdj: kdj };
+                updateAnalysisUI(currentStock, quote);
+                
+                // 只有 Fugle 來源才有五檔
+                renderOrderBook(quote.bids, quote.asks);
             } catch (e) { console.error(e); alert("分析失敗: " + e.message); } 
             finally { if(btn) btn.innerText = "分析"; }
         }
+
         function renderOrderBook(bids, asks) {
             const bidEl = document.getElementById('bidTable'); const askEl = document.getElementById('askTable');
             bidEl.innerHTML = ''; askEl.innerHTML = '';
-            if (!bids || !asks) { bidEl.innerHTML = '<div class="text-center text-xs text-slate-600">無數據</div>'; return; }
+            if (!bids || !asks) { bidEl.innerHTML = '<div class="text-center text-xs text-slate-600">無五檔數據</div>'; return; }
             bids.slice(0, 5).forEach(b => bidEl.innerHTML += `<div class="flex justify-between items-center order-book-row relative"><div class="absolute right-0 top-0 bottom-0 bid-bar" style="width: ${Math.min(100, (b.volume/50)*100)}%"></div><span class="text-white z-10">${b.volume}</span><span class="text-profit font-bold z-10">${b.price}</span></div>`);
             asks.slice(0, 5).reverse().forEach(a => askEl.innerHTML += `<div class="flex justify-between items-center order-book-row relative"><div class="absolute left-0 top-0 bottom-0 ask-bar" style="width: ${Math.min(100, (a.volume/50)*100)}%"></div><span class="text-loss font-bold z-10">${a.price}</span><span class="text-white z-10">${a.volume}</span></div>`);
         }
-        function updateAnalysisUI(stock, fugle) {
+
+        function updateAnalysisUI(stock, quote) {
             document.getElementById('analysisResult').classList.remove('hidden');
             document.getElementById('stockNameDisplay').innerText = `${stock.name} (${stock.id})`;
-            const color = fugle.change >= 0 ? 'text-profit' : 'text-loss';
+            const color = quote.change >= 0 ? 'text-profit' : 'text-loss';
             document.getElementById('currentPrice').innerText = stock.price; document.getElementById('currentPrice').className = `text-4xl font-bold ${color}`;
-            document.getElementById('priceChange').innerText = `${fugle.change} (${(fugle.changePercent*100).toFixed(2)}%)`; document.getElementById('priceChange').className = `text-base font-bold ${color}`;
+            document.getElementById('priceChange').innerText = quote.change; document.getElementById('priceChange').className = `text-base font-bold ${color}`;
             document.getElementById('recommendBuy').innerText = stock.buyPoint.toFixed(1);
             document.getElementById('diffText').innerText = `距現價 ${((stock.price - stock.buyPoint) / stock.buyPoint * 100).toFixed(1)}%`;
             const badge = document.getElementById('kdjStatusBadge'); const icon = document.getElementById('buySignalIcon');
@@ -365,10 +402,7 @@
             } else { document.getElementById('kVal').innerText = "--"; badge.innerText = "資料不足"; }
             if (((stock.price - stock.buyPoint) / stock.buyPoint * 100) < 2) { icon.classList.remove('hidden'); } else { icon.classList.add('hidden'); }
         }
-        async function fetchFugleQuote(id) {
-            const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
-            const json = await res.json(); return { ...json, bids: json.order?.bids || [], asks: json.order?.asks || [] };
-        }
+
         async function fetchFinMindHistory(id) {
             const startDate = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0];
             const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${startDate}&token=${FINMIND_TOKEN}`);
@@ -398,7 +432,7 @@
         function saveAndRender() { localStorage.setItem('pro_portfolio_v3', JSON.stringify(portfolio)); renderPortfolio(); }
         function exportData() { if (portfolio.length === 0) return alert("無資料可備份"); const code = JSON.stringify(portfolio); navigator.clipboard.writeText(code).then(() => alert("✅ 代碼已複製")).catch(() => { console.log(code); alert("複製失敗，請看 Console"); }); }
         function importData() { const code = prompt("請貼上備份代碼："); if (!code) return; try { portfolio = JSON.parse(code); saveAndRender(); alert("✅ 還原成功"); } catch (e) { alert("❌ 代碼錯誤"); } }
-        async function updatePortfolioPrices() { for(let p of portfolio) { try { const q = await fetchFugleQuote(p.id); if(q.lastPrice) p.curr = q.lastPrice; const h = await fetchFinMindHistory(p.id); const k = calculateKDJ(h); if(k) p.kdjState = k.k > 80 ? 'high' : k.k < 20 ? 'low' : 'mid'; } catch(e){} } saveAndRender(); }
+        async function updatePortfolioPrices() { for(let p of portfolio) { try { const q = await fetchQuoteSafe(p.id); if(q.price) p.curr = q.price; const h = await fetchFinMindHistory(p.id); const k = calculateKDJ(h); if(k) p.kdjState = k.k > 80 ? 'high' : k.k < 20 ? 'low' : 'mid'; } catch(e){} } saveAndRender(); }
     </script>
 </body>
 </html>
