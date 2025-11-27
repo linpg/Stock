@@ -3,640 +3,435 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2025 刷卡回饋小幫手 v3.0</title>
+    <title>台股智慧分析與操盤系統</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
-        body {
-            font-family: 'Noto Sans TC', sans-serif;
-            background-color: #f3f4f6;
-        }
-        .card-checkbox:checked + div {
-            border-color: #3b82f6;
-            background-color: #eff6ff;
-        }
-        .category-btn.active {
-            background-color: #2563eb;
-            color: white;
-            border-color: #2563eb;
-            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
-        }
-        /* Custom scrollbar for horizontal lists */
-        .hide-scroll::-webkit-scrollbar {
-            display: none;
-        }
-        .hide-scroll {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        .badge-register {
-            background-color: #fff1f2;
-            color: #be123c;
-            border: 1px solid #fecdd3;
-        }
-        .badge-new {
-            background-color: #dcfce7;
-            color: #15803d;
-            border: 1px solid #bbf7d0;
-        }
+        body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
+        .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; }
+        .input-field { background-color: #0f172a; border: 1px solid #475569; color: white; }
+        .btn-primary { background-color: #06b6d4; color: white; transition: all 0.2s; }
+        .btn-primary:hover { background-color: #0891b2; }
+        .text-profit { color: #ef4444; } /* 台股紅漲 */
+        .text-loss { color: #22c55e; }   /* 台股綠跌 */
     </style>
 </head>
-<body class="text-gray-800 pb-24">
+<body class="p-4 md:p-8">
 
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-blue-700 to-blue-600 text-white p-4 sticky top-0 z-40 shadow-lg">
-        <div class="max-w-md mx-auto flex justify-between items-center">
-            <h1 class="text-lg font-bold flex items-center">
-                <i class="fas fa-credit-card mr-2 text-yellow-300"></i>
-                <span>2025 回饋小幫手</span>
-            </h1>
-            <button onclick="toggleWallet()" class="text-xs bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full hover:bg-white/30 transition border border-white/30 flex items-center">
-                <i class="fas fa-wallet mr-1.5"></i>我的錢包
-            </button>
+    <!-- 頂部導航 -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-cyan-400">📈 台股智慧分析系統</h1>
+            <p class="text-slate-400 text-sm mt-1">Powered by FinMind API | Token 已啟用</p>
         </div>
-    </header>
-
-    <div class="max-w-md mx-auto p-4">
-
-        <!-- Wallet Selection Modal (Hidden by default) -->
-        <div id="walletModal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden animate-fade-in-up">
-                <div class="p-4 border-b flex justify-between items-center bg-gray-50">
-                    <h3 class="font-bold text-lg text-gray-800">選擇您持有的信用卡</h3>
-                    <button onclick="toggleWallet()" class="text-gray-400 hover:text-gray-600 w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 transition"><i class="fas fa-times"></i></button>
-                </div>
-                <div class="p-4 overflow-y-auto flex-grow space-y-2" id="walletList">
-                    <!-- Cards injected by JS -->
-                </div>
-                <div class="p-4 border-t bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-                    <button onclick="saveWallet()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 active:scale-[0.98] transition shadow-md">
-                        儲存並返回
-                    </button>
-                </div>
-            </div>
+        <div class="text-right">
+            <div id="updateTime" class="text-xs text-slate-500">等待更新...</div>
         </div>
-
-        <!-- Search Section -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-5">
-            <label class="block text-sm font-bold text-gray-700 mb-3 flex justify-between">
-                <span>您想消費什麼？</span>
-                <span class="text-xs font-normal text-gray-400" id="searchHint">輸入商家或關鍵字</span>
-            </label>
-            <div class="relative group">
-                <i class="fas fa-search absolute left-3.5 top-3 text-gray-400 group-focus-within:text-blue-500 transition"></i>
-                <input type="text" id="searchInput" placeholder="搜尋 (例如: 全聯, 日本, 高鐵)" 
-                       class="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white outline-none transition text-sm"
-                       oninput="handleSearch()">
-                <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-                    <i class="fas fa-times-circle"></i>
-                </button>
-            </div>
-            
-            <!-- Quick Categories -->
-            <div class="mt-4">
-                <div class="flex gap-2 overflow-x-auto hide-scroll pb-2 -mx-1 px-1">
-                    <!-- New/Hot Categories -->
-                    <button onclick="selectCategory('linepay')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="linepay">
-                        <i class="fab fa-line mr-1 text-green-500"></i>LINE Pay
-                    </button>
-                    <button onclick="selectCategory('pxpay')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="pxpay">
-                        <i class="fas fa-shopping-basket mr-1 text-blue-500"></i>全聯/全支付
-                    </button>
-                    <button onclick="selectCategory('convenience')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="convenience">
-                        <i class="fas fa-store mr-1 text-orange-500"></i>超商(7-11/全家)
-                    </button>
-                    
-                    <!-- Standard Categories -->
-                     <button onclick="selectCategory('general')" class="category-btn active whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="general">
-                        <i class="fas fa-home mr-1"></i>國內一般
-                    </button>
-                    <button onclick="selectCategory('foreign')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="foreign">
-                        <i class="fas fa-globe-asia mr-1"></i>海外一般
-                    </button>
-                    <button onclick="selectCategory('japan_korea')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="japan_korea">
-                        <i class="fas fa-plane mr-1"></i>日本/韓國
-                    </button>
-                    <button onclick="selectCategory('online')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="online">
-                        <i class="fas fa-shopping-cart mr-1"></i>網購電商
-                    </button>
-                     <button onclick="selectCategory('travel')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="travel">
-                        <i class="fas fa-ticket-alt mr-1"></i>旅遊/機票
-                    </button>
-                     <button onclick="selectCategory('delivery')" class="category-btn whitespace-nowrap px-4 py-2 rounded-full border border-gray-200 text-sm font-medium text-gray-500 transition flex-shrink-0" data-cat="delivery">
-                        <i class="fas fa-hamburger mr-1"></i>美食外送
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recommendations Area -->
-        <div id="resultsArea" class="space-y-4 pb-8">
-            <!-- Results injected by JS -->
-        </div>
-        
-        <!-- Info Footer -->
-        <div class="mt-8 text-center text-xs text-gray-400 pb-4">
-            <p class="mb-1">資料來源：2024年底/2025年初各大銀行公告整理。</p>
-            <p class="mb-1">⚠️ 標示「需登錄」之活動請務必點擊連結完成登錄。</p>
-            <p>實際回饋以銀行官方網站最新公告為準。</p>
-        </div>
-
     </div>
 
-    <script>
-        // --- 1. Enhanced Credit Card Data (v3.0 - Expanded) ---
-        const creditCards = [
-            // --- NEW CARDS ---
-            {
-                id: "sinopac_daway",
-                name: "永豐 DAWAY 卡",
-                bank: "永豐銀行",
-                imgColor: "bg-gradient-to-r from-green-400 to-blue-500", // Stylish gradient
-                eventUrl: "https://bank.sinopac.com/sinopacBT/personal/credit-card/introduction/bankcard/daway.html",
-                requiresReg: true, // For new user bonus usually
-                features: {
-                    general: { rate: 1, note: "LINE Points 回饋" },
-                    linepay: { rate: 3, note: "無上限！(新戶加碼可達 6%)" },
-                    foreign: { rate: 3, note: "海外實體/網購 (LINE Points)" },
-                    japan_korea: { rate: 3, note: "同海外回饋" },
-                    convenience: { rate: 0, note: "無特別回饋 (除非綁LINE Pay)" }
-                },
-                tags: ["line pay", "linepoints", "japan", "korea"]
-            },
-            {
-                id: "ts_daquanlian",
-                name: "台新 大全聯卡",
-                bank: "台新銀行",
-                imgColor: "bg-red-800", 
-                eventUrl: "https://www.taishinbank.com.tw/TSB/personal/credit/intro/overview/cg010/card001/",
-                requiresReg: false,
-                features: {
-                    general: { rate: 0.5, note: "一般消費" },
-                    pxpay: { rate: 12, note: "全聯店內最高 12% (含全支付)" }, // New high rate logic
-                    convenience: { rate: 0.5, note: "一般消費" }
-                },
-                tags: ["pxpay", "全聯", "全支付", "supermarket"]
-            },
-            {
-                id: "first_ileo",
-                name: "第一銀行 iLEO 卡",
-                bank: "第一銀行",
-                imgColor: "bg-yellow-400",
-                eventUrl: "https://card.firstbank.com.tw/sites/card/touch/1565690685468",
-                requiresReg: false,
-                features: {
-                    general: { rate: 0.5, note: "" },
-                    linepay: { rate: 4, note: "指定行動支付最高 4% (新戶可能更高)" },
-                    pxpay: { rate: 4, note: "全支付 (非全聯店內) 最高 4%" },
-                    mobile_pay: { rate: 4, note: "街口/LINE Pay/Apple Pay" }
-                },
-                tags: ["line pay", "街口", "apple pay", "google pay", "pxpay"]
-            },
-            {
-                id: "ctbc_allme",
-                name: "中信 ALL ME 卡",
-                bank: "中國信託",
-                imgColor: "bg-gray-900",
-                eventUrl: "https://www.ctbcbank.com/content/dam/minisite/long/creditcard/ALLME/index.html",
-                features: {
-                    general: { rate: 1, note: "中信點" },
-                    convenience: { rate: 3, note: "7-11/全家 (需綁 Hami Pay/Pi 錢包)" },
-                    online: { rate: 8, note: "PChome/中華電信 (最高)" },
-                    delivery: { rate: 1, note: "一般消費" }
-                },
-                tags: ["pchome", "7-11", "family mart", "pi wallet", "hami pay"]
-            },
-             {
-                id: "hsbc_cash",
-                name: "滙豐 匯鑽卡",
-                bank: "滙豐銀行",
-                imgColor: "bg-purple-700",
-                eventUrl: "https://www.hsbc.com.tw/credit-cards/products/cash-rewards-plus/",
-                features: {
-                    general: { rate: 1, note: "" },
-                    mobile_pay: { rate: 3, note: "街口/PayPal (達檻翻倍至 6%)" },
-                    online: { rate: 3, note: "指定網購 (momo/UberEats)" },
-                    delivery: { rate: 3, note: "UberEats/Foodpanda" }
-                },
-                tags: ["街口", "paypal", "momo", "ubereats", "foodpanda"]
-            },
-
-            // --- EXISTING CARDS (Enhanced tags) ---
-            {
-                id: "cathay_cube",
-                name: "國泰 CUBE 卡",
-                bank: "國泰世華",
-                imgColor: "bg-gradient-to-br from-gray-700 to-gray-900",
-                eventUrl: "https://www.cathaybk.com.tw/cathaybk/personal/product/credit-card/cards/cube/",
-                features: {
-                    general: { rate: 0.3, note: "無上限" },
-                    foreign: { rate: 3, note: "權益：趣旅行 (海外實體)" },
-                    japan_korea: { rate: 3, note: "權益：趣旅行" },
-                    online: { rate: 3, note: "權益：玩數位 (蝦皮/Momo)" },
-                    dining: { rate: 3, note: "權益：樂饗購" },
-                    travel: { rate: 3, note: "權益：趣旅行" },
-                    convenience: { rate: 3, note: "權益：集精選 (7-11/全家)" },
-                    delivery: { rate: 3, note: "權益：樂饗購" },
-                    pxpay: { rate: 2, note: "權益：集精選 (全聯/全支付)" },
-                    linepay: { rate: 2, note: "權益：LINE Pay (需選對權益)" } // Assumed promotion or general
-                },
-                tags: ["uber", "ubereats", "foodpanda", "klook", "shopee", "momo", "7-11", "全家", "全聯", "pxpay"]
-            },
-            {
-                id: "esun_unicard",
-                name: "玉山 Unicard",
-                bank: "玉山銀行",
-                imgColor: "bg-gradient-to-br from-emerald-400 to-emerald-600",
-                eventUrl: "https://www.esunbank.com.tw/bank/personal/credit-card/intro/bank-card/unicard",
-                features: {
-                    general: { rate: 1, note: "基本回饋" },
-                    foreign: { rate: 3, note: "簡單選" }, 
-                    japan_korea: { rate: 3, note: "簡單選" },
-                    online: { rate: 3.5, note: "百大特店" },
-                    linepay: { rate: 3.5, note: "指定支付 (最高)" },
-                    pxpay: { rate: 5, note: "新戶首綁全支付優惠 (限時)" }, // Special logic
-                    convenience: { rate: 1, note: "一般消費" },
-                    mobile_pay: { rate: 3.5, note: "LINE Pay/街口" }
-                },
-                tags: ["line pay", "街口", "apple pay", "全支付", "pxpay"]
-            },
-            {
-                id: "taishin_rose_sun",
-                name: "台新 太陽/玫瑰卡",
-                bank: "台新銀行",
-                imgColor: "bg-gradient-to-br from-red-500 to-red-700",
-                eventUrl: "https://www.taishinbank.com.tw/TS/TS02/TS0201/TS020101/TS02010101/TS0201010104/TS020101010409/index.htm",
-                features: {
-                    general: { rate: 0.3, note: "非指定" },
-                    japan_korea: { rate: 3.8, note: "無上限 (日韓歐美)" },
-                    convenience: { rate: 3.8, note: "權益：天天刷 (7-11/全家)" },
-                    linepay: { rate: 0.3, note: "建議用 @GoGo" }, // Low rate warning
-                    delivery: { rate: 3.8, note: "權益：天天刷" },
-                    pxpay: { rate: 0.3, note: "一般消費" }
-                },
-                tags: ["7-11", "family mart", "全家", "foodpanda", "ubereats"]
-            },
-            {
-                id: "taishin_gogo",
-                name: "台新 @GoGo 卡",
-                bank: "台新銀行",
-                imgColor: "bg-gradient-to-br from-gray-800 to-black",
-                eventUrl: "https://www.taishinbank.com.tw/TS/TS02/TS0201/TS020101/TS02010101/TS0201010104/TS020101010401/index.htm",
-                features: {
-                    general: { rate: 0.5, note: "" },
-                    online: { rate: 3.8, note: "精選網購" },
-                    linepay: { rate: 3.8, note: "精選行動支付 (上限1000點)" },
-                    pxpay: { rate: 0.5, note: "一般消費" },
-                    convenience: { rate: 0.5, note: "除非綁 LINE Pay" }
-                },
-                tags: ["line pay", "shopee", "momo"]
-            },
-            {
-                id: "fubon_j",
-                name: "富邦 J 卡",
-                bank: "台北富邦",
-                imgColor: "bg-gradient-to-br from-pink-400 to-pink-600",
-                eventUrl: "https://www.fubon.com/banking/personal/credit_card/all_card/j_card/j_card.htm",
-                requiresReg: true,
-                features: {
-                    general: { rate: 1, note: "" },
-                    japan_korea: { rate: 3, note: "日韓實體 (加碼需登錄)" },
-                    linepay: { rate: 1, note: "國內一般" }, // Changed in 2024/2025
-                    convenience: { rate: 3, note: "日韓當地超商" }
-                },
-                tags: ["japan", "korea", "line pay"]
-            },
-            {
-                id: "federal_jihe",
-                name: "聯邦 吉鶴卡",
-                bank: "聯邦銀行",
-                imgColor: "bg-gradient-to-br from-red-300 to-red-500",
-                features: {
-                    general: { rate: 1.3, note: "無上限 (需綁 NewNewBank)" },
-                    japan_korea: { rate: 3, note: "日本 (QUICPay 4.5%)" },
-                    linepay: { rate: 1.3, note: "國內一般" }
-                },
-                tags: ["quicpay", "japan", "apple pay"]
-            },
-            {
-                id: "sinopac_dawho",
-                name: "永豐 大戶卡",
-                bank: "永豐銀行",
-                imgColor: "bg-gradient-to-br from-gray-600 to-gray-800",
-                features: {
-                    general: { rate: 1, note: "" },
-                    travel: { rate: 7, note: "指定通路 (需大戶等級)" },
-                    foreign: { rate: 3, note: "需大戶等級" },
-                    linepay: { rate: 1, note: "一般消費" }
-                },
-                tags: ["travel", "foodpanda", "ubereats"]
-            },
-            {
-                id: "dbs_eco",
-                name: "星展 eco 永續卡",
-                bank: "星展銀行",
-                imgColor: "bg-gradient-to-br from-green-500 to-green-700",
-                features: {
-                    general: { rate: 1.5, note: "無上限" },
-                    foreign: { rate: 5, note: "指定國家實體" }
-                },
-                tags: ["tesla", "gogoro", "singapore"]
-            }
-        ];
-
-        // --- 2. State Management ---
-        // Initialize with ALL cards for the first time if no legacy data
-        // If legacy data exists but doesn't have new cards, we append new IDs to it
-        const allCardIds = creditCards.map(c => c.id);
-        let storedWallet = JSON.parse(localStorage.getItem('myWallet'));
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        // Simple logic to ensure new users get all cards checked by default, or merge for existing
-        let userWallet;
-        if (!storedWallet) {
-            userWallet = allCardIds;
-        } else {
-            // Keep user's choices but you might want to auto-add new cards? 
-            // For this demo, let's just use what they had. User can add new ones in modal.
-            userWallet = storedWallet;
-        }
-
-        let currentCategory = 'general';
-        let currentSearch = '';
-
-        // --- 3. DOM Elements ---
-        const walletModal = document.getElementById('walletModal');
-        const walletList = document.getElementById('walletList');
-        const resultsArea = document.getElementById('resultsArea');
-        const searchInput = document.getElementById('searchInput');
-        const clearSearchBtn = document.getElementById('clearSearchBtn');
-        const categoryBtns = document.querySelectorAll('.category-btn');
-
-        // --- 4. Initialization ---
-        function init() {
-            renderWalletList();
-            calculateAndRender();
-        }
-
-        // --- 5. Logic: Calculate Best Cards ---
-        function calculateAndRender() {
-            let results = [];
-
-            // Filter by ownership
-            const myCards = creditCards.filter(card => userWallet.includes(card.id));
-
-            myCards.forEach(card => {
-                let score = 0;
-                let note = "";
-                let isRelevant = false;
-
-                // Priority 1: Search Keyword Match
-                if (currentSearch) {
-                    const searchLower = currentSearch.toLowerCase();
-                    const tagMatch = card.tags && card.tags.some(tag => tag.includes(searchLower));
-                    const nameMatch = card.name.toLowerCase().includes(searchLower);
-                    
-                    if (tagMatch || nameMatch) {
-                        isRelevant = true;
-                        // Keyword Logic Mapping
-                        if (['line', 'line pay', 'linepay'].some(k => searchLower.includes(k))) {
-                             if(card.features.linepay) { score = card.features.linepay.rate; note = card.features.linepay.note; }
-                             else { score = card.features.general.rate; note = card.features.general.note; }
-                        } else if (['pxpay', '全支付', '全聯', 'px'].some(k => searchLower.includes(k))) {
-                             if(card.features.pxpay) { score = card.features.pxpay.rate; note = card.features.pxpay.note; }
-                             else { score = card.features.general.rate; note = card.features.general.note; }
-                        } else if (['uber', 'foodpanda', 'ubereats', 'delivery'].some(k => searchLower.includes(k))) {
-                             if(card.features.delivery) { score = card.features.delivery.rate; note = card.features.delivery.note; }
-                             else if(card.features.online) { score = card.features.online.rate; note = card.features.online.note; }
-                             else { score = card.features.general.rate; note = card.features.general.note; }
-                        } else if (['7-11', 'family', '全家', '超商', 'mart'].some(k => searchLower.includes(k))) {
-                             if(card.features.convenience) { score = card.features.convenience.rate; note = card.features.convenience.note; }
-                             else { score = card.features.general.rate; note = card.features.general.note; }
-                        } else if (['travel', 'ticket', 'hotel', 'booking', 'agoda', 'klook', '機票', '住宿', '高鐵'].some(k => searchLower.includes(k))) {
-                             if(card.features.travel) { score = card.features.travel.rate; note = card.features.travel.note; }
-                             else if(card.features.online) { score = card.features.online.rate; note = card.features.online.note; }
-                             else { score = card.features.general.rate; note = card.features.general.note; }
-                        } else if (['shopee', 'momo', 'pchome'].some(k => searchLower.includes(k))) {
-                             if(card.features.online) { score = card.features.online.rate; note = card.features.online.note; }
-                             else { score = card.features.general.rate; note = card.features.general.note; }
-                        } else if (['japan', 'korea', 'tokyo', 'osaka', 'seoul', '日本', '韓國'].some(k => searchLower.includes(k))) {
-                             if(card.features.japan_korea) { score = card.features.japan_korea.rate; note = card.features.japan_korea.note; }
-                             else if(card.features.foreign) { score = card.features.foreign.rate; note = card.features.foreign.note; }
-                             else { score = card.features.general.rate; note = card.features.general.note; }
-                        } else {
-                            score = card.features.general.rate; 
-                            note = "符合搜尋關鍵字 (依一般回饋計算)";
-                        }
-                    }
-                } 
-                // Priority 2: Category Selection
-                else {
-                    isRelevant = true;
-                    // Direct category mapping
-                    const feat = card.features[currentCategory];
-                    if (feat) {
-                        score = feat.rate;
-                        note = feat.note;
-                    } else if (currentCategory === 'mobile_pay' && card.features.linepay) {
-                        // Fallback logic for generic mobile pay if linepay exists
-                        score = card.features.linepay.rate;
-                        note = "LINE Pay 回饋 (參考)";
-                    } else if (card.features.general) {
-                        score = card.features.general.rate;
-                        note = "無特定加碼，依一般消費";
-                    }
-                }
-
-                if (isRelevant) {
-                    results.push({ card, score, note });
-                }
-            });
-
-            // Sort by score desc
-            results.sort((a, b) => b.score - a.score);
-
-            // Empty State
-            if (results.length === 0) {
-                 resultsArea.innerHTML = `
-                    <div class="text-center py-12">
-                        <div class="text-6xl mb-4 grayscale opacity-50">💸</div>
-                        <h3 class="text-lg font-bold text-gray-700">找不到合適的卡片</h3>
-                        <p class="text-gray-500 text-sm mt-2">試試看不同的關鍵字，<br>或是到「我的錢包」新增更多卡片。</p>
-                        <button onclick="toggleWallet()" class="mt-6 px-6 py-2 bg-blue-100 text-blue-600 rounded-full font-bold hover:bg-blue-200 transition">
-                            管理錢包
-                        </button>
-                    </div>
-                 `;
-                 return;
-            }
-
-            // Render Results
-            let html = '';
-            results.forEach((item, index) => {
-                const isTop = index === 0;
-                // Visual styles for Top 1 vs others
-                const containerClass = isTop 
-                    ? 'border-blue-500 ring-2 ring-blue-50 shadow-lg transform scale-[1.01]' 
-                    : 'border-gray-200 hover:border-gray-300';
+        <!-- 左側：查詢與分析區 -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- 1. 股票查詢 -->
+            <div class="card p-5">
+                <h2 class="text-xl font-bold mb-4 border-l-4 border-cyan-400 pl-3">🔍 個股即時診斷</h2>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" id="stockInput" placeholder="輸入代碼 (如 2330)" class="input-field flex-1 px-4 py-2 rounded-lg focus:outline-none focus:border-cyan-400">
+                    <button onclick="analyzeStock()" class="btn-primary px-6 py-2 rounded-lg font-bold">分析</button>
+                </div>
                 
-                const scoreColor = isTop ? 'text-red-600' : 'text-gray-700';
-                const medal = isTop ? '<i class="fas fa-crown text-yellow-400 mr-2 animate-bounce"></i>' : '';
-                
-                // Registration Badge Logic
-                let actionBtn = '';
-                let regBadge = '';
-                
-                if (item.card.requiresReg) {
-                    regBadge = `<span class="badge-register text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold"><i class="fas fa-exclamation-circle mr-1"></i>需登錄/新戶</span>`;
-                }
-
-                if (item.card.eventUrl) {
-                    actionBtn = `
-                        <a href="${item.card.eventUrl}" target="_blank" class="block w-full mt-3 text-center py-2 rounded-lg text-sm font-bold transition ${isTop ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">
-                            <i class="fas fa-external-link-alt mr-1"></i> 
-                            ${item.card.requiresReg ? '前往登錄活動' : '查看官網權益'}
-                        </a>
-                    `;
-                }
-
-                html += `
-                <div class="bg-white rounded-2xl border ${containerClass} p-4 transition duration-300 relative overflow-hidden group">
-                    <div class="flex items-start">
-                        <div class="w-14 h-9 ${item.card.imgColor} rounded-md mr-4 flex-shrink-0 shadow-sm mt-1"></div>
-                        <div class="flex-grow min-w-0">
-                            <div class="flex justify-between items-start">
-                                <h3 class="font-bold text-gray-800 truncate pr-2 flex items-center">
-                                    ${medal}${item.card.name}
-                                    ${regBadge}
-                                </h3>
-                                <div class="font-black ${scoreColor} text-2xl flex-shrink-0 flex flex-col items-end leading-none">
-                                    <span>${item.score}%</span>
-                                    <span class="text-[10px] text-gray-400 font-normal mt-1">回饋率</span>
-                                </div>
-                            </div>
-                            <p class="text-xs text-gray-500 mb-2">${item.card.bank}</p>
-                            <div class="bg-gray-50 rounded-lg p-2 text-sm text-gray-700 border border-gray-100">
-                                <i class="fas fa-check-circle text-green-500 mr-1.5"></i>${item.note}
-                            </div>
-                            ${actionBtn}
+                <!-- 分析結果顯示區 -->
+                <div id="analysisResult" class="hidden space-y-4">
+                    <div class="flex justify-between items-end border-b border-slate-700 pb-3">
+                        <div>
+                            <h3 id="stockName" class="text-2xl font-bold text-white">台積電 (2330)</h3>
+                            <span id="stockDate" class="text-xs text-slate-400">2025-11-27</span>
                         </div>
+                        <div class="text-right">
+                            <div id="currentPrice" class="text-3xl font-bold text-profit">1030.0</div>
+                            <div id="priceChange" class="text-sm font-bold text-profit">+5.0 (0.5%)</div>
+                        </div>
+                    </div>
+
+                    <!-- 智能評分 -->
+                    <div class="bg-slate-800 rounded-lg p-4">
+                        <div class="flex justify-between mb-2">
+                            <span class="text-slate-400">AI 綜合推薦度</span>
+                            <span id="aiScore" class="font-bold text-yellow-400">計算中...</span>
+                        </div>
+                        <div class="w-full bg-slate-700 rounded-full h-2.5 mb-1">
+                            <div id="scoreBar" class="bg-yellow-400 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <p id="aiComment" class="text-xs text-slate-400 mt-2">等待分析數據...</p>
+                    </div>
+
+                    <!-- 數據矩陣 -->
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div class="bg-slate-800 p-3 rounded">
+                            <div class="text-slate-400 text-xs">近5日最低 (支撐參考)</div>
+                            <div id="low5Days" class="text-lg font-mono text-white">--</div>
+                        </div>
+                        <div class="bg-slate-800 p-3 rounded">
+                            <div class="text-slate-400 text-xs">外資近3日動向</div>
+                            <div id="foreignTrend" class="text-lg font-mono text-white">--</div>
+                        </div>
+                    </div>
+
+                    <!-- 動作按鈕 -->
+                    <button onclick="addToPortfolio()" class="w-full border border-cyan-400 text-cyan-400 hover:bg-cyan-900/30 py-2 rounded-lg mt-2 transition">
+                        + 加入持倉監控
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. 市場自動掃描 (推薦名單) -->
+            <div class="card p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold border-l-4 border-green-400 pl-3">⚡ 市場觀察名單</h2>
+                    <button onclick="scanMarket()" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-300">🔄 掃描</button>
+                </div>
+                <div class="overflow-y-auto max-h-64">
+                    <table class="w-full text-sm text-left">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-800 sticky top-0">
+                            <tr>
+                                <th class="px-3 py-2">代碼</th>
+                                <th class="px-3 py-2">現價</th>
+                                <th class="px-3 py-2">評分</th>
+                                <th class="px-3 py-2">狀態</th>
+                            </tr>
+                        </thead>
+                        <tbody id="scannerTableBody" class="divide-y divide-slate-700">
+                            <tr><td colspan="4" class="text-center py-4 text-slate-500">點擊掃描以獲取推薦...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：持倉管理 -->
+        <div class="lg:col-span-2">
+            <div class="card p-5 h-full">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold border-l-4 border-purple-400 pl-3">💼 我的持倉與損益</h2>
+                    <div class="text-right">
+                        <span class="text-sm text-slate-400">總損益: </span>
+                        <span id="totalProfit" class="text-xl font-bold text-white">0</span>
                     </div>
                 </div>
-                `;
-            });
-            resultsArea.innerHTML = html;
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left text-slate-300">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-800/50">
+                            <tr>
+                                <th class="px-4 py-3">股票</th>
+                                <th class="px-4 py-3">成本均價</th>
+                                <th class="px-4 py-3">現價</th>
+                                <th class="px-4 py-3">庫存</th>
+                                <th class="px-4 py-3">損益</th>
+                                <th class="px-4 py-3">支撐(停損)</th>
+                                <th class="px-4 py-3">壓力(停利)</th>
+                                <th class="px-4 py-3">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="portfolioBody" class="divide-y divide-slate-700">
+                            <!-- 持倉列表將渲染於此 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="emptyState" class="text-center py-10 text-slate-500">
+                    <p>尚無持倉數據，請從左側分析後加入</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯核心 -->
+    <script>
+        // 🔐 API 設定
+        const API_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNS0xMS0yNyAxMjoyOToyOSIsInVzZXJfaWQiOiJMSU5QRyIsImlwIjoiMS4xNzAuMTE0LjIwIn0.SyyVMOX2eF6uNVO3EZpkRylFrQqFFXjH1PJcM5oFQt0";
+        const BASE_URL = "https://api.finmindtrade.com/api/v4/data";
+
+        // 狀態管理
+        let currentAnalysis = null;
+        let portfolio = JSON.parse(localStorage.getItem('tw_stock_portfolio')) || [];
+        
+        // 預設掃描清單 (熱門權值股)
+        const WATCHLIST = ['2330', '2317', '2454', '2308', '2881', '2603', '2382', '3037', '3231', '6669'];
+
+        // 初始化
+        window.onload = () => {
+            renderPortfolio();
+            document.getElementById('updateTime').innerText = `最後更新: ${new Date().toLocaleString()}`;
+        };
+
+        // 🛠️ 核心功能：分析個股
+        async function analyzeStock(stockIdInput = null) {
+            const stockId = stockIdInput || document.getElementById('stockInput').value.trim();
+            if (!stockId) return alert("請輸入股票代碼！");
+
+            const btn = document.querySelector('button[onclick="analyzeStock()"]');
+            if(btn) btn.innerText = "分析中...";
+
+            try {
+                // 設定時間範圍 (取近 30 天以計算均線和低點)
+                const endDate = new Date().toISOString().split('T')[0];
+                const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+                // 1. 並行抓取 價格 & 三大法人 & 基本面(PER)
+                const [priceRes, chipRes, perRes] = await Promise.all([
+                    fetch(`${BASE_URL}?dataset=TaiwanStockPrice&data_id=${stockId}&start_date=${startDate}&token=${API_TOKEN}`),
+                    fetch(`${BASE_URL}?dataset=TaiwanStockInstitutionalInvestorsBuySell&data_id=${stockId}&start_date=${startDate}&token=${API_TOKEN}`),
+                    fetch(`${BASE_URL}?dataset=TaiwanStockPER&data_id=${stockId}&start_date=${startDate}&token=${API_TOKEN}`)
+                ]);
+
+                const priceData = (await priceRes.json()).data;
+                const chipData = (await chipRes.json()).data;
+                const perData = (await perRes.json()).data;
+
+                if (!priceData || priceData.length === 0) throw new Error("查無資料或代碼錯誤");
+
+                // 2. 數據處理
+                const latest = priceData[priceData.length - 1];
+                const prev = priceData[priceData.length - 2];
+                
+                // 計算 5 日最低
+                const last5Days = priceData.slice(-5);
+                const low5 = Math.min(...last5Days.map(d => d.min));
+                
+                // 計算 5 日均線 (MA5)
+                const ma5 = last5Days.reduce((sum, d) => sum + d.close, 0) / last5Days.length;
+
+                // 計算外資近 3 日買賣超
+                const last3Chips = chipData.slice(-3);
+                const foreignSum = last3Chips.reduce((sum, d) => sum + (d.Foreign_Investor_buy_sell || 0), 0);
+                
+                // 取得最新本益比
+                const latestPER = perData.length > 0 ? perData[perData.length - 1].PER : 0;
+
+                // 3. 智能評分邏輯 (0-100分)
+                let score = 50; // 基礎分
+                let reasons = [];
+
+                if (latest.close > ma5) { score += 15; reasons.push("站上5日均線"); }
+                else { score -= 10; reasons.push("跌破5日線"); }
+
+                if (foreignSum > 0) { score += 20; reasons.push("外資近3日買超"); }
+                else { score -= 15; reasons.push("外資近3日賣超"); }
+
+                if (latestPER > 0 && latestPER < 15) { score += 10; reasons.push("本益比低估"); }
+                
+                if (latest.close <= low5 * 1.02) { score += 10; reasons.push("接近近5日低點(支撐)"); }
+
+                // 4. 更新 UI
+                updateAnalysisUI({
+                    id: stockId,
+                    name: latest.stock_id, // API v4 這裡只回傳 ID，實際名稱需另抓或忽略
+                    date: latest.date,
+                    price: latest.close,
+                    change: latest.close - prev.close,
+                    pctChange: (latest.close - prev.close) / prev.close * 100,
+                    low5: low5,
+                    foreignTrend: foreignSum,
+                    score: Math.min(100, Math.max(0, score)), // 限制 0-100
+                    reasons: reasons
+                });
+
+            } catch (err) {
+                console.error(err);
+                alert("分析失敗：" + err.message);
+            } finally {
+                if(btn) btn.innerText = "分析";
+            }
         }
 
-        // --- 6. UI Interactions ---
-
-        function selectCategory(cat) {
-            currentCategory = cat;
-            clearSearch(false); // Clear search text but don't re-render yet
+        function updateAnalysisUI(data) {
+            currentAnalysis = data; // 暫存供加入持倉用
             
-            // Visual Update
-            categoryBtns.forEach(btn => {
-                if (btn.dataset.cat === cat) {
-                    btn.classList.add('active');
-                    btn.classList.remove('border-gray-200', 'text-gray-500');
-                } else {
-                    btn.classList.remove('active');
-                    btn.classList.add('border-gray-200', 'text-gray-500');
-                }
-            });
+            const container = document.getElementById('analysisResult');
+            container.classList.remove('hidden');
 
-            calculateAndRender();
+            // 基本資料
+            document.getElementById('stockName').innerText = `${data.id}`;
+            document.getElementById('stockDate').innerText = data.date;
+            
+            // 價格顏色
+            const priceEl = document.getElementById('currentPrice');
+            const changeEl = document.getElementById('priceChange');
+            priceEl.innerText = data.price.toFixed(1);
+            changeEl.innerText = `${data.change > 0 ? '▲' : '▼'} ${Math.abs(data.change).toFixed(1)} (${Math.abs(data.pctChange).toFixed(2)}%)`;
+            
+            const colorClass = data.change >= 0 ? 'text-profit' : 'text-loss';
+            priceEl.className = `text-3xl font-bold ${colorClass}`;
+            changeEl.className = `text-sm font-bold ${colorClass}`;
+
+            // 評分
+            document.getElementById('aiScore').innerText = data.score;
+            document.getElementById('scoreBar').style.width = `${data.score}%`;
+            
+            let comment = "";
+            if (data.score >= 80) comment = "🚀 強力推薦：籌碼與技術面雙強";
+            else if (data.score >= 60) comment = "👀 值得觀察：基本面良好，等待買點";
+            else comment = "⚠️ 風險較高：建議觀望，等待止跌";
+            document.getElementById('aiComment').innerText = `${comment} (${data.reasons.join(', ')})`;
+            
+            // 數據矩陣
+            document.getElementById('low5Days').innerText = data.low5;
+            document.getElementById('foreignTrend').innerText = (data.foreignTrend / 1000).toFixed(1) + " 張";
+            document.getElementById('foreignTrend').className = `text-lg font-mono ${data.foreignTrend > 0 ? 'text-profit' : 'text-loss'}`;
         }
 
-        function handleSearch() {
-            const val = searchInput.value.trim();
-            if (val.length > 0) {
-                currentSearch = val;
-                clearSearchBtn.classList.remove('hidden');
-                categoryBtns.forEach(btn => btn.classList.remove('active'));
+        // 🛠️ 核心功能：加入持倉
+        function addToPortfolio() {
+            if (!currentAnalysis) return;
+            
+            const qty = prompt(`請輸入 ${currentAnalysis.id} 持有張數 (例如 1):`, "1");
+            if (!qty) return;
+            
+            const cost = prompt(`請輸入買入成本價 (預設現價):`, currentAnalysis.price);
+            
+            const newItem = {
+                id: currentAnalysis.id,
+                cost: parseFloat(cost || currentAnalysis.price),
+                qty: parseFloat(qty),
+                curr: currentAnalysis.price, // 初始現價
+                low5: currentAnalysis.low5
+            };
+            
+            // 檢查是否已存在，若有則更新
+            const existingIdx = portfolio.findIndex(p => p.id === newItem.id);
+            if (existingIdx >= 0) {
+                portfolio[existingIdx] = newItem;
             } else {
-                currentSearch = '';
-                clearSearchBtn.classList.add('hidden');
-                updateCategoryVisuals();
+                portfolio.push(newItem);
             }
-            calculateAndRender();
+            
+            saveAndRender();
         }
 
-        function clearSearch(render = true) {
-            searchInput.value = '';
-            currentSearch = '';
-            clearSearchBtn.classList.add('hidden');
-            updateCategoryVisuals();
-            if (render) calculateAndRender();
-        }
+        // 🛠️ 核心功能：渲染持倉列表
+        function renderPortfolio() {
+            const tbody = document.getElementById('portfolioBody');
+            const empty = document.getElementById('emptyState');
+            let totalPnL = 0;
 
-        function updateCategoryVisuals() {
-             categoryBtns.forEach(btn => {
-                if (btn.dataset.cat === currentCategory) {
-                    btn.classList.add('active');
-                    btn.classList.remove('border-gray-200', 'text-gray-500');
-                } else {
-                    btn.classList.remove('active');
-                    btn.classList.add('border-gray-200', 'text-gray-500');
-                }
-            });
-        }
+            tbody.innerHTML = '';
 
-        // --- 7. Wallet Logic ---
-
-        function toggleWallet() {
-            const modal = document.getElementById('walletModal');
-            if (modal.classList.contains('hidden')) {
-                modal.classList.remove('hidden');
-            } else {
-                modal.classList.add('hidden');
+            if (portfolio.length === 0) {
+                empty.classList.remove('hidden');
+                return;
             }
-        }
+            empty.classList.add('hidden');
 
-        function renderWalletList() {
-            let html = '';
-            // New cards on top for visibility if not owned? 
-            // Better: just list all.
-            creditCards.forEach(card => {
-                const isChecked = userWallet.includes(card.id) ? 'checked' : '';
-                html += `
-                <label class="flex items-center cursor-pointer group select-none">
-                    <input type="checkbox" class="hidden card-checkbox" value="${card.id}" ${isChecked}>
-                    <div class="flex-grow p-3 border border-gray-100 rounded-xl flex items-center transition duration-200 group-hover:bg-gray-50 hover:border-gray-300">
-                        <div class="w-10 h-6 ${card.imgColor} rounded shadow-sm mr-3"></div>
-                        <div class="flex-grow">
-                            <div class="font-bold text-sm text-gray-800">${card.name}</div>
-                            <div class="text-xs text-gray-400">${card.bank}</div>
-                        </div>
-                        <div class="w-6 h-6 rounded-full border-2 border-gray-200 flex items-center justify-center text-white transition-colors input-checked-style">
-                            <i class="fas fa-check text-xs"></i>
-                        </div>
-                    </div>
-                </label>
-                <style>
-                    .card-checkbox:checked + div .input-checked-style {
-                        background-color: #3b82f6;
-                        border-color: #3b82f6;
-                    }
-                    .card-checkbox:checked + div {
-                        background-color: #eff6ff;
-                        border-color: #bfdbfe;
-                    }
-                </style>
+            portfolio.forEach((item, index) => {
+                // 計算損益
+                const profit = (item.curr - item.cost) * item.qty * 1000;
+                const profitClass = profit >= 0 ? 'text-profit' : 'text-loss';
+                totalPnL += profit;
+
+                // 自動計算支撐與壓力
+                const support = (item.cost * 0.95).toFixed(1); // 停損 -5%
+                const resistance = (item.cost * 1.10).toFixed(1); // 停利 +10%
+
+                const row = `
+                    <tr class="hover:bg-slate-800/50 transition">
+                        <td class="px-4 py-3 font-bold text-white">${item.id}</td>
+                        <td class="px-4 py-3">${item.cost}</td>
+                        <td class="px-4 py-3 text-white">${item.curr}</td>
+                        <td class="px-4 py-3">${item.qty} 張</td>
+                        <td class="px-4 py-3 font-bold ${profitClass}">${profit > 0 ? '+' : ''}${Math.round(profit).toLocaleString()}</td>
+                        <td class="px-4 py-3 text-slate-400">${support} <span class="text-xs text-slate-600">(-5%)</span></td>
+                        <td class="px-4 py-3 text-cyan-400">${resistance} <span class="text-xs text-slate-600">(+10%)</span></td>
+                        <td class="px-4 py-3">
+                            <button onclick="removePortfolio(${index})" class="text-xs bg-red-900/50 text-red-400 px-2 py-1 rounded hover:bg-red-900">刪除</button>
+                            <button onclick="analyzeStock('${item.id}')" class="text-xs bg-cyan-900/50 text-cyan-400 px-2 py-1 rounded hover:bg-cyan-900 ml-1">更新</button>
+                        </td>
+                    </tr>
                 `;
+                tbody.innerHTML += row;
             });
-            walletList.innerHTML = html;
+
+            // 更新總損益
+            const totalEl = document.getElementById('totalProfit');
+            totalEl.innerText = `${totalPnL > 0 ? '+' : ''}${Math.round(totalPnL).toLocaleString()}`;
+            totalEl.className = `text-xl font-bold ${totalPnL >= 0 ? 'text-profit' : 'text-loss'}`;
         }
 
-        function saveWallet() {
-            const checkboxes = document.querySelectorAll('.card-checkbox:checked');
-            userWallet = Array.from(checkboxes).map(cb => cb.value);
-            localStorage.setItem('myWallet', JSON.stringify(userWallet));
-            toggleWallet();
-            calculateAndRender();
+        function removePortfolio(index) {
+            if(confirm("確定移除此持倉嗎？")) {
+                portfolio.splice(index, 1);
+                saveAndRender();
+            }
         }
 
-        // Init
-        init();
+        function saveAndRender() {
+            localStorage.setItem('tw_stock_portfolio', JSON.stringify(portfolio));
+            renderPortfolio();
+        }
 
+        // 🛠️ 核心功能：市場掃描
+        async function scanMarket() {
+            const tbody = document.getElementById('scannerTableBody');
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-cyan-400 animate-pulse">正在掃描市場數據...</td></tr>';
+            
+            let results = [];
+
+            // 限制掃描數量以免瀏覽器卡頓
+            for (const stockId of WATCHLIST) {
+                try {
+                    const endDate = new Date().toISOString().split('T')[0];
+                    const startDate = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                    
+                    // 簡單掃描：只看價格和均線
+                    const res = await fetch(`${BASE_URL}?dataset=TaiwanStockPrice&data_id=${stockId}&start_date=${startDate}&token=${API_TOKEN}`);
+                    const json = await res.json();
+                    const data = json.data;
+                    
+                    if(data && data.length > 0) {
+                        const latest = data[data.length - 1];
+                        const ma5 = data.reduce((s, d) => s + d.close, 0) / data.length;
+                        
+                        // 簡易評分
+                        let score = 50;
+                        if(latest.close > ma5) score += 20; // 站上均線
+                        if(latest.Trading_Volume > 10000000) score += 10; // 量大
+                        
+                        results.push({
+                            id: stockId,
+                            price: latest.close,
+                            score: score
+                        });
+                    }
+                } catch (e) { console.error(e); }
+            }
+
+            // 排序並渲染
+            results.sort((a, b) => b.score - a.score);
+            
+            tbody.innerHTML = '';
+            results.forEach(item => {
+                let badge = item.score >= 70 ? '<span class="bg-red-900 text-red-300 text-xs px-2 py-0.5 rounded">強勢</span>' : 
+                            item.score >= 50 ? '<span class="bg-yellow-900 text-yellow-300 text-xs px-2 py-0.5 rounded">觀察</span>' :
+                            '<span class="bg-slate-700 text-slate-400 text-xs px-2 py-0.5 rounded">弱勢</span>';
+                            
+                const row = `
+                    <tr class="hover:bg-slate-700 cursor-pointer" onclick="analyzeStock('${item.id}')">
+                        <td class="px-3 py-2 font-bold text-white">${item.id}</td>
+                        <td class="px-3 py-2">${item.price}</td>
+                        <td class="px-3 py-2 font-mono text-yellow-400">${item.score}</td>
+                        <td class="px-3 py-2">${badge}</td>
+                    </tr>
+                `;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // 自動載入：如果有持倉，自動更新一次最新價
+        if(portfolio.length > 0) {
+            // 這裡可以實作一個 batch update，目前先簡單跳過，避免 API 呼叫過多
+            console.log("持倉載入完成");
+        }
     </script>
 </body>
 </html>
