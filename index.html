@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v5.4 (AI 智能排序版)</title>
+    <title>台股雙引擎儀表板 v5.5 (外資獵手版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -22,8 +22,19 @@
         
         .status-tag { font-size: 0.65rem; padding: 1px 4px; border-radius: 2px; font-weight: bold; }
         .status-hot { background: linear-gradient(90deg, #be185d, #db2777); color: white; }
-        .status-cold { background: #334155; color: #94a3b8; }
         
+        .foreign-hunter-tag { 
+            background: linear-gradient(90deg, #7c3aed, #db2777); 
+            color: white; 
+            font-size: 0.7rem; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            font-weight: bold; 
+            animation: pulse 1.5s infinite; 
+            display: inline-block;
+        }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
+
         .buy-icon { font-size: 1rem; animation: bounce 1s infinite; display: inline-block; }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
         
@@ -40,7 +51,7 @@
 </head>
 <body class="p-4 md:p-8 relative">
 
-    <!-- Modal & Alert 保持不變 -->
+    <!-- Modal & Alert -->
     <div id="addPortfolioModal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-overlay">
         <div class="bg-slate-800 rounded-lg border border-slate-600 p-6 w-full max-w-sm shadow-2xl">
             <h3 class="text-xl font-bold text-white mb-4">📥 加入持倉</h3>
@@ -52,13 +63,16 @@
     </div>
 
     <div id="bigOrderAlert" class="fixed inset-0 z-[60] hidden flex items-center justify-center pointer-events-none">
-        <div id="alertModal" class="bg-gradient-to-b from-slate-700 to-slate-900 rounded-xl border-2 border-yellow-500 p-0 w-80 shadow-2xl pointer-events-auto overflow-hidden">
-            <div class="bg-gradient-to-r from-slate-800 to-slate-700 p-3 border-b border-slate-600 flex justify-between items-center"><h3 class="text-lg font-bold text-white flex items-center"><span class="mr-2 text-yellow-400">🔔</span> 提示訊息</h3><button onclick="closeAlert()" class="text-slate-400 hover:text-white text-xl">×</button></div>
+        <div id="alertModal" class="bg-gradient-to-b from-slate-700 to-slate-900 rounded-xl border-2 border-pink-500 p-0 w-80 shadow-2xl pointer-events-auto overflow-hidden">
+            <div class="bg-gradient-to-r from-slate-800 to-slate-700 p-3 border-b border-slate-600 flex justify-between items-center"><h3 class="text-lg font-bold text-white flex items-center"><span class="mr-2 text-pink-400">🚀</span> 外資獵手警示</h3><button onclick="closeAlert()" class="text-slate-400 hover:text-white text-xl">×</button></div>
             <div class="p-6 text-center">
                 <p id="alertTime" class="text-sm text-slate-400 mb-2">--:--</p>
                 <h4 id="alertStock" class="text-2xl font-bold text-white mb-1">--</h4>
                 <p class="text-lg text-slate-300">現價 <span id="alertPrice" class="text-profit font-bold">--</span></p>
-                <div class="mt-4 bg-slate-800/50 rounded p-2 border border-slate-700"><p class="text-yellow-400 font-bold text-xl">⚡ 單量 <span id="alertVol">--</span> 張</p><p class="text-xs text-slate-500 mt-1">大戶進場偵測</p></div>
+                <div class="mt-4 bg-slate-800/50 rounded p-2 border border-slate-700">
+                    <p class="text-yellow-400 font-bold text-xl">⚡ 連續買盤</p>
+                    <p id="alertDesc" class="text-xs text-slate-500 mt-1">外資積極敲進中</p>
+                </div>
             </div>
             <div class="flex border-t border-slate-600"><button onclick="closeAlert()" class="flex-1 py-3 text-slate-300 hover:bg-slate-700 transition">忽略</button><button onclick="closeAlert()" class="flex-1 py-3 text-cyan-400 font-bold hover:bg-slate-700 transition border-l border-slate-600">確認</button></div>
         </div>
@@ -67,14 +81,14 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v5.4 智能排序版 | 確保資料顯示</p>
+            <p class="text-slate-400 text-sm mt-1">v5.5 外資獵手版 | 偵測連續外盤買單</p>
         </div>
         <div class="text-right"><div id="updateTime" class="text-xs text-slate-500">更新中...</div></div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <!-- 左側：個股診斷 -->
+        <!-- 左側 -->
         <div class="lg:col-span-1 space-y-6">
             <div class="card p-5">
                 <h2 class="text-xl font-bold mb-4 border-l-4 border-cyan-400 pl-3">🔍 個股診斷</h2>
@@ -106,10 +120,9 @@
                 </div>
             </div>
 
-            <!-- AI 智能選股 -->
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
-                    <div><h2 class="text-xl font-bold border-l-4 border-pink-500 pl-3">🔥 熱門股排行</h2></div>
+                    <div><h2 class="text-xl font-bold border-l-4 border-pink-500 pl-3">🔥 AI 熱門榜</h2></div>
                     <button onclick="scanTrendingStocks()" class="text-xs bg-pink-900 hover:bg-pink-800 text-pink-100 px-3 py-1 rounded border border-pink-700"><span class="animate-spin mr-1 hidden" id="scanSpinner">⟳</span> 刷新</button>
                 </div>
                 <div class="overflow-x-auto h-[500px] pr-1">
@@ -133,12 +146,15 @@
 
         <!-- 右側 -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- 大戶雷達 -->
+            <!-- 大戶雷達 (外資獵手) -->
             <div class="card p-5 relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-20 h-20 bg-yellow-500/10 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
+                <div class="absolute top-0 right-0 w-20 h-20 bg-purple-500/10 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold border-l-4 border-yellow-500 pl-3">📡 大戶雷達 <span class="text-xs bg-yellow-900 text-yellow-300 px-2 py-0.5 rounded ml-2">LIVE</span></h2>
-                    <button onclick="scanBigOrders()" class="text-xs bg-yellow-900/50 hover:bg-yellow-900 text-white px-3 py-1 rounded border border-yellow-700">掃描</button>
+                    <h2 class="text-xl font-bold border-l-4 border-purple-500 pl-3 flex items-center">
+                        📡 外資獵手 
+                        <span class="ml-2 text-xs bg-purple-900 text-purple-300 px-2 py-0.5 rounded animate-pulse">LIVE</span>
+                    </h2>
+                    <div class="text-xs text-slate-400">偵測模式：<span class="text-purple-400 font-bold">連續外盤大單</span></div>
                 </div>
                 <div class="overflow-x-auto max-h-64 bg-black/20 rounded-lg border border-slate-700/50">
                     <table class="w-full text-sm text-left">
@@ -146,14 +162,14 @@
                             <tr>
                                 <th class="px-4 py-3">時間</th>
                                 <th class="px-4 py-3">股票</th>
-                                <th class="px-4 py-3 text-right">大單(張)</th>
+                                <th class="px-4 py-3 text-right">連續單(張)</th>
                                 <th class="px-4 py-3 text-right">成交價</th>
-                                <th class="px-4 py-3">動態</th>
+                                <th class="px-4 py-3">主力動態</th>
                                 <th class="px-4 py-3 text-center">操作</th>
                             </tr>
                         </thead>
                         <tbody id="bigOrderBody" class="divide-y divide-slate-700">
-                            <tr><td colspan="6" class="text-center py-12 text-slate-500">監控中 (門檻 > 50 張)...</td></tr>
+                            <tr><td colspan="6" class="text-center py-12 text-slate-500">正在掃描外資蹤跡 (門檻 > 50 張)...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -187,7 +203,6 @@
         const FUGLE_KEY = "OGNiYzc2YmQtMzdjYS00NTJkLWI1ZGUtNjY1ODRhNTMwNTAxIDhlMTRiMDVkLTk0NzItNDUzMi05NjY2LTkzYjlhMTQ5NzBjMw==";
         const FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNS0xMS0yNyAxMjoyOToyOSIsInVzZXJfaWQiOiJMSU5QRyIsImlwIjoiMS4xNzAuMTE0LjIwIn0.SyyVMOX2eF6uNVO3EZpkRylFrQqFFXjH1PJcM5oFQt0";
 
-        // 🔥 擴大監控池，確保有資料
         const HOT_STOCKS_POOL = [
             '2330', '2317', '2454', '2382', '3231', '6669', '2356', '3035', '3443', '3661', 
             '3037', '2376', '2368', '3017', '3583', '3131', '6187', '1513', '1519', '1514', 
@@ -197,125 +212,116 @@
         let currentStock = null;
         let portfolio = JSON.parse(localStorage.getItem('pro_portfolio_v3')) || [];
         let lastAlertTime = 0;
+        // 紀錄每檔股票最近一次大單時間，用來判斷「連續性」
+        let lastBigOrderMap = {}; 
 
         window.onload = () => {
             renderPortfolio();
-            scanTrendingStocks(); // 啟動選股
+            scanTrendingStocks(); 
             setInterval(updatePortfolioPrices, 30000);
             setInterval(scanBigOrders, 5000); 
         };
 
-        // 🔥 AI 智能排序 (邏輯優化：不篩選，只排序)
-        async function scanTrendingStocks() {
-            const tbody = document.getElementById('watchlistBody');
-            const spinner = document.getElementById('scanSpinner');
-            spinner.classList.remove('hidden');
-            
-            const trendingList = [];
-            // 隨機取 15 檔顯示，避免請求過多卡住
-            const batch = HOT_STOCKS_POOL.sort(() => 0.5 - Math.random()).slice(0, 15);
-
-            await Promise.all(batch.map(async (id) => {
-                try {
-                    const quote = await fetchFugleQuote(id);
-                    if (!quote.lastPrice) return;
-                    
-                    // 抓不到歷史資料沒關係，只算即時漲跌
-                    let kdjText = '-';
-                    let buyPoint = quote.lastPrice * 0.9;
-                    
-                    try {
-                        const history = await fetchFinMindHistory(id);
-                        const kdj = calculateKDJ(history);
-                        if (kdj) kdjText = `${kdj.k.toFixed(0)}`;
-                        if (history.length >= 5) buyPoint = Math.min(...history.slice(-5).map(d => d.min));
-                    } catch(e) {}
-
-                    // 評分：漲幅越高分數越高
-                    const score = quote.changePercent || 0;
-                    
-                    trendingList.push({
-                        id: id,
-                        name: quote.name,
-                        price: quote.lastPrice,
-                        change: quote.changePercent,
-                        kdjText: kdjText,
-                        buyPoint: buyPoint,
-                        score: score
-                    });
-                } catch (e) {}
-            }));
-
-            // 排序：漲幅大的在上面
-            trendingList.sort((a, b) => b.score - a.score);
-
-            tbody.innerHTML = '';
-            if (trendingList.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500">無資料，請稍後再試</td></tr>';
-            } else {
-                trendingList.forEach(stock => {
-                    // 狀態標籤
-                    let statusTag = '<span class="status-tag status-cold">盤整</span>';
-                    if (stock.score > 0.01) statusTag = '<span class="status-tag status-hot">🔥 強勢</span>';
-                    else if (stock.score < -0.01) statusTag = '<span class="text-xs text-green-400">修正</span>';
-
-                    let signalIcon = '';
-                    const diff = ((stock.price - stock.buyPoint) / stock.buyPoint * 100);
-                    if (diff < 2 && diff > -2) signalIcon = '<span class="buy-icon text-yellow-400">🎯</span>';
-
-                    const color = stock.change >= 0 ? 'text-profit' : 'text-loss';
-
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-700 cursor-pointer border-b border-slate-700/50" onclick="analyzeStock('${stock.id}')">
-                            <td class="px-2 py-3 font-bold text-white">${stock.name} <span class="text-[10px] text-slate-400 block">${stock.id}</span></td>
-                            <td class="px-2 py-3 text-right ${color}">${stock.price}</td>
-                            <td class="px-2 py-3 text-center">${statusTag}</td>
-                            <td class="px-2 py-3 text-right font-mono text-xs text-slate-400">${stock.kdjText}</td>
-                            <td class="px-2 py-3 text-center">${signalIcon}</td>
-                        </tr>`;
-                });
-            }
-            spinner.classList.add('hidden');
-        }
-
-        // 🔥 大戶雷達 (門檻降至 50 張)
+        // 🔥 外資獵手核心邏輯
         async function scanBigOrders() {
             const tbody = document.getElementById('bigOrderBody');
-            if(tbody.innerHTML.includes('監控中')) tbody.innerHTML = '';
-            // 擴大掃描範圍
-            const randomTargets = HOT_STOCKS_POOL.sort(() => 0.5 - Math.random()).slice(0, 3);
+            if(tbody.innerHTML.includes('掃描')) tbody.innerHTML = '';
+            
+            const randomTargets = HOT_STOCKS_POOL.sort(() => 0.5 - Math.random()).slice(0, 5); // 每次掃 5 檔
             for (const id of randomTargets) {
                 try {
                     const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
                     const json = await res.json();
                     const trade = json.lastTrade;
                     
-                    // 門檻降至 50 張，確保有東西跑出來
-                    if (trade && trade.unit >= 50) { 
+                    if (trade && trade.unit >= 50) { // 門檻 50 張
+                        const now = Date.now();
+                        const lastTime = lastBigOrderMap[id] || 0;
+                        const isConsecutive = (now - lastTime) < 60000; // 60秒內連續出現
+                        lastBigOrderMap[id] = now;
+
+                        // 外盤成交佔比 > 55% (買氣強)
                         const buyPower = (json.total.tradeVolumeAtAsk / json.total.tradeVolume) * 100;
-                        let mainForceTag = '<span class="text-xs text-slate-500">中性</span>';
-                        if (buyPower > 55) mainForceTag = `<span class="main-force-tag">🔥 主力積極</span>`;
                         
-                        const time = new Date(json.lastUpdated / 1000).toLocaleTimeString();
-                        showAlert(`${json.name} (${id})`, trade.price, trade.unit, time);
-                        
-                        const rowHTML = `
-                            <tr class="big-order-row border-b border-slate-700 cursor-pointer hover:bg-slate-700" onclick="analyzeStock('${id}')">
-                                <td class="px-4 py-3 text-slate-400 font-mono text-xs">${time}</td>
-                                <td class="px-4 py-3 font-bold text-white">${json.name}</td>
-                                <td class="px-4 py-3 text-right text-yellow-400 font-bold text-lg">⚡ ${trade.unit}</td>
-                                <td class="px-4 py-3 text-right text-white">${trade.price}</td>
-                                <td class="px-4 py-3">${mainForceTag}</td>
-                                <td class="px-4 py-3 text-center"><button class="text-xs bg-cyan-900 text-cyan-300 px-2 py-1 rounded">分析</button></td>
-                            </tr>`;
-                        tbody.insertAdjacentHTML('afterbegin', rowHTML);
-                        if(tbody.rows.length > 50) tbody.deleteRow(-1);
+                        let hunterTag = '';
+                        // 如果是 連續大單 + 外盤成交，視為外資買盤
+                        if (isConsecutive && buyPower > 55) {
+                            hunterTag = `<span class="foreign-hunter-tag">🔥 外資連買</span>`;
+                            const time = new Date(json.lastUpdated / 1000).toLocaleTimeString();
+                            showAlert(`${json.name} (${id})`, trade.price, trade.unit, time, "連續買盤偵測");
+                            
+                            const rowHTML = `
+                                <tr class="big-order-row border-b border-slate-700 cursor-pointer hover:bg-slate-700" onclick="analyzeStock('${id}')">
+                                    <td class="px-4 py-3 text-slate-400 font-mono text-xs">${time}</td>
+                                    <td class="px-4 py-3 font-bold text-white">${json.name}</td>
+                                    <td class="px-4 py-3 text-right text-yellow-400 font-bold text-lg">⚡ ${trade.unit}</td>
+                                    <td class="px-4 py-3 text-right text-white">${trade.price}</td>
+                                    <td class="px-4 py-3">${hunterTag}</td>
+                                    <td class="px-4 py-3 text-center"><button class="text-xs bg-cyan-900 text-cyan-300 px-2 py-1 rounded">分析</button></td>
+                                </tr>`;
+                            tbody.insertAdjacentHTML('afterbegin', rowHTML);
+                            if(tbody.rows.length > 50) tbody.deleteRow(-1);
+                        }
                     }
                 } catch(e) {}
             }
         }
 
-        // 其他基礎功能 (分析、持倉、API)
+        // 🔔 彈窗優化
+        function showAlert(stockName, price, vol, time, desc) {
+            if (Date.now() - lastAlertTime < 5000) return;
+            lastAlertTime = Date.now();
+            const modal = document.getElementById('bigOrderAlert');
+            document.getElementById('alertTime').innerText = time;
+            document.getElementById('alertStock').innerText = stockName;
+            document.getElementById('alertPrice').innerText = price;
+            document.getElementById('alertVol').innerText = vol;
+            document.getElementById('alertDesc').innerText = desc || "外資積極敲進中";
+            modal.classList.remove('hidden');
+            try { document.getElementById('alertSound').play(); } catch(e){}
+            setTimeout(() => { modal.classList.add('hidden'); }, 5000);
+        }
+        function closeAlert() { document.getElementById('bigOrderAlert').classList.add('hidden'); }
+
+        // 其他功能保持 v5.4 版本...
+        async function scanTrendingStocks() {
+            const tbody = document.getElementById('watchlistBody');
+            const spinner = document.getElementById('scanSpinner');
+            spinner.classList.remove('hidden');
+            const trendingList = [];
+            const batch = HOT_STOCKS_POOL.sort(() => 0.5 - Math.random()).slice(0, 15);
+            await Promise.all(batch.map(async (id) => {
+                try {
+                    const quote = await fetchFugleQuote(id);
+                    if (!quote.lastPrice) return;
+                    let kdjText = '-';
+                    let buyPoint = quote.lastPrice * 0.9;
+                    try {
+                        const history = await fetchFinMindHistory(id);
+                        const kdj = calculateKDJ(history);
+                        if (kdj) kdjText = `${kdj.k.toFixed(0)}`;
+                        if (history.length >= 5) buyPoint = Math.min(...history.slice(-5).map(d => d.min));
+                    } catch(e) {}
+                    const score = quote.changePercent || 0;
+                    trendingList.push({ id: id, name: quote.name, price: quote.lastPrice, change: quote.changePercent, kdjText: kdjText, buyPoint: buyPoint, score: score });
+                } catch (e) {}
+            }));
+            trendingList.sort((a, b) => b.score - a.score);
+            tbody.innerHTML = '';
+            if (trendingList.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-slate-500">無資料</td></tr>'; } 
+            else {
+                trendingList.forEach(stock => {
+                    let statusTag = '<span class="text-xs text-slate-500">盤整</span>';
+                    if (stock.score > 0.01) statusTag = '<span class="status-tag status-hot">🔥 強勢</span>';
+                    let signalIcon = '';
+                    const diff = ((stock.price - stock.buyPoint) / stock.buyPoint * 100);
+                    if (diff < 2 && diff > -2) signalIcon = '<span class="buy-icon text-yellow-400">🎯</span>';
+                    const color = stock.change >= 0 ? 'text-profit' : 'text-loss';
+                    tbody.innerHTML += `<tr class="hover:bg-slate-700 cursor-pointer border-b border-slate-700/50" onclick="analyzeStock('${stock.id}')"><td class="px-2 py-3 font-bold text-white">${stock.name} <span class="text-[10px] text-slate-400 block">${stock.id}</span></td><td class="px-2 py-3 text-right ${color}">${stock.price}</td><td class="px-2 py-3 text-center">${statusTag}</td><td class="px-2 py-3 text-right font-mono text-xs text-slate-400">${stock.kdjText}</td><td class="px-2 py-3 text-center">${signalIcon}</td></tr>`;
+                });
+            }
+            spinner.classList.add('hidden');
+        }
         async function analyzeStock(inputId = null) {
             const stockId = inputId || document.getElementById('stockInput').value.trim();
             if (!stockId) return alert("請輸入代碼");
@@ -334,8 +340,6 @@
             } catch (e) { console.error(e); alert("分析失敗: " + e.message); } 
             finally { if(btn) btn.innerText = "分析"; }
         }
-
-        // 輔助函式保持不變
         function renderOrderBook(bids, asks) {
             const bidEl = document.getElementById('bidTable'); const askEl = document.getElementById('askTable');
             bidEl.innerHTML = ''; askEl.innerHTML = '';
@@ -377,7 +381,6 @@
                 let rsv = mx === mn ? 50 : ((c - mn) / (mx - mn)) * 100; k = (2/3) * k + (1/3) * rsv; d = (2/3) * d + (1/3) * k;
             } return { k, d, j: 3 * k - 2 * d };
         }
-        // Modal, Portfolio, Export/Import
         function openAddModal() { if (!currentStock) return alert("請先分析一檔股票"); document.getElementById('modalStockName').value = `${currentStock.name} (${currentStock.id})`; document.getElementById('modalCost').value = currentStock.price; document.getElementById('addPortfolioModal').classList.remove('hidden'); }
         function closeModal() { document.getElementById('addPortfolioModal').classList.add('hidden'); }
         function confirmAddPortfolio() { const qty = parseFloat(document.getElementById('modalQty').value); const cost = parseFloat(document.getElementById('modalCost').value); if (!qty || !cost) return alert("輸入錯誤"); portfolio.push({ id: currentStock.id, name: currentStock.name, cost: cost, qty: qty, curr: currentStock.price, kdjState: currentStock.kdj ? (currentStock.kdj.k > 80 ? 'high' : (currentStock.kdj.k < 20 ? 'low' : 'mid')) : 'mid' }); saveAndRender(); closeModal(); }
@@ -396,8 +399,6 @@
         function exportData() { if (portfolio.length === 0) return alert("無資料可備份"); const code = JSON.stringify(portfolio); navigator.clipboard.writeText(code).then(() => alert("✅ 代碼已複製")).catch(() => { console.log(code); alert("複製失敗，請看 Console"); }); }
         function importData() { const code = prompt("請貼上備份代碼："); if (!code) return; try { portfolio = JSON.parse(code); saveAndRender(); alert("✅ 還原成功"); } catch (e) { alert("❌ 代碼錯誤"); } }
         async function updatePortfolioPrices() { for(let p of portfolio) { try { const q = await fetchFugleQuote(p.id); if(q.lastPrice) p.curr = q.lastPrice; const h = await fetchFinMindHistory(p.id); const k = calculateKDJ(h); if(k) p.kdjState = k.k > 80 ? 'high' : k.k < 20 ? 'low' : 'mid'; } catch(e){} } saveAndRender(); }
-        function showAlert(n, p, v, t) { if (Date.now() - lastAlertTime < 5000) return; lastAlertTime = Date.now(); const m = document.getElementById('bigOrderAlert'); document.getElementById('alertTime').innerText = t; document.getElementById('alertStock').innerText = n; document.getElementById('alertPrice').innerText = p; document.getElementById('alertVol').innerText = v; m.classList.remove('hidden'); try { document.getElementById('alertSound').play(); } catch(e){} setTimeout(() => m.classList.add('hidden'), 5000); }
-        function closeAlert() { document.getElementById('bigOrderAlert').classList.add('hidden'); }
     </script>
 </body>
 </html>
