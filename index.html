@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股双引擎仪表板 v3.3 (499 大户雷达)</title>
+    <title>台股雙引擎儀表板 v3.4 (產業分組版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -14,14 +14,14 @@
         .text-profit { color: #ef4444; } 
         .text-loss { color: #22c55e; }
         .buy-point { color: #facc15; font-weight: bold; }
-        /* 499 大单特效 */
+        .industry-header { background: #334155; color: #94a3b8; font-size: 0.75rem; font-weight: bold; padding: 4px 12px; }
+        /* 499 大單特效 */
         .big-order-row { animation: flash 2s infinite; }
         @keyframes flash {
             0% { background-color: rgba(239, 68, 68, 0.1); }
             50% { background-color: rgba(239, 68, 68, 0.3); }
             100% { background-color: rgba(239, 68, 68, 0.1); }
         }
-        /* 自订卷轴 */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
@@ -29,25 +29,25 @@
 </head>
 <body class="p-4 md:p-8">
 
-    <!-- 顶部导航 -->
+    <!-- 頂部導航 -->
     <div class="flex justify-between items-center mb-8">
         <div>
-            <h1 class="text-3xl font-bold text-cyan-400">🚀 台股双引擎仪表板</h1>
-            <p class="text-slate-400 text-sm mt-1">Fugle (即时) + FinMind (历史) | 499 大户雷达版</p>
+            <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
+            <p class="text-slate-400 text-sm mt-1">v3.4 產業分組版 | Fugle + FinMind</p>
         </div>
         <div class="text-right">
-            <div id="updateTime" class="text-xs text-slate-500">监控中...</div>
+            <div id="updateTime" class="text-xs text-slate-500">更新中...</div>
         </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <!-- 左侧：个股诊断 -->
+        <!-- 左側：個股診斷 -->
         <div class="lg:col-span-1 space-y-6">
             <div class="card p-5">
-                <h2 class="text-xl font-bold mb-4 border-l-4 border-cyan-400 pl-3">🔍 个股诊断</h2>
+                <h2 class="text-xl font-bold mb-4 border-l-4 border-cyan-400 pl-3">🔍 個股診斷</h2>
                 <div class="flex gap-2 mb-4">
-                    <input type="text" id="stockInput" placeholder="输入代码 (如 2330)" class="input-field flex-1 px-4 py-2 rounded-lg focus:outline-none focus:border-cyan-400">
+                    <input type="text" id="stockInput" placeholder="代碼 (如 2330)" class="input-field flex-1 px-4 py-2 rounded-lg focus:outline-none focus:border-cyan-400">
                     <button onclick="analyzeStock()" class="btn-primary px-6 py-2 rounded-lg font-bold">分析</button>
                 </div>
                 
@@ -62,51 +62,45 @@
                             <div id="priceChange" class="text-base font-bold text-slate-400">--</div>
                         </div>
                     </div>
-
                     <div class="bg-slate-800/80 p-3 rounded-lg border border-yellow-600/30">
                         <div class="flex justify-between items-center text-sm mb-1">
-                            <span class="text-slate-400">🎯 系统建议买点</span>
-                            <span class="text-xs text-yellow-500 bg-yellow-900/20 px-2 rounded">支撑算法</span>
+                            <span class="text-slate-400">🎯 系統建議買點</span>
+                            <span class="text-xs text-yellow-500 bg-yellow-900/20 px-2 rounded">支撐算法</span>
                         </div>
                         <div class="flex justify-between items-end">
                             <span id="recommendBuy" class="text-2xl font-mono text-yellow-400 font-bold">--</span>
-                            <span id="diffText" class="text-xs text-slate-400">距现价 --%</span>
+                            <span id="diffText" class="text-xs text-slate-400">距現價 --%</span>
                         </div>
                     </div>
-
                     <div class="bg-slate-800 rounded-lg p-4 border border-slate-700">
                         <div class="flex justify-between mb-2">
-                            <span class="text-cyan-400 font-bold">AI 综合评分</span>
+                            <span class="text-cyan-400 font-bold">AI 評分</span>
                             <span id="aiScore" class="font-bold text-white text-xl">--</span>
                         </div>
                         <div class="w-full bg-slate-700 rounded-full h-2 mb-3">
                             <div id="scoreBar" class="bg-cyan-500 h-2 rounded-full transition-all duration-1000" style="width: 0%"></div>
                         </div>
-                        <div class="space-y-1 text-xs text-slate-400">
-                            <div class="flex justify-between"><span>技术型态</span><span id="techStatus">--</span></div>
-                        </div>
                     </div>
-
                     <button onclick="addToPortfolio()" class="w-full bg-cyan-700 hover:bg-cyan-600 text-white py-3 rounded-lg mt-2 transition shadow-lg">
-                        + 加入持仓
+                        + 加入持倉
                     </button>
                 </div>
             </div>
 
-            <!-- 观察清单 -->
+            <!-- 📋 產業觀察名單 (更新重點) -->
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold border-l-4 border-yellow-400 pl-3">📋 观察名单</h2>
-                    <button onclick="refreshWatchlist()" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-300">更新</button>
+                    <h2 class="text-xl font-bold border-l-4 border-yellow-400 pl-3">📋 產業觀察名單</h2>
+                    <button onclick="refreshWatchlist()" class="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded text-slate-300">🔄</button>
                 </div>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto h-[500px] pr-1"> <!-- 固定高度可捲動 -->
                     <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-slate-400 uppercase bg-slate-800">
+                        <thead class="text-xs text-slate-400 uppercase bg-slate-800 sticky top-0 z-10">
                             <tr>
                                 <th class="px-2 py-2">股名</th>
-                                <th class="px-2 py-2 text-right">现价</th>
-                                <th class="px-2 py-2 text-right text-yellow-400">买点</th>
-                                <th class="px-2 py-2 text-right">空间</th>
+                                <th class="px-2 py-2 text-right">現價</th>
+                                <th class="px-2 py-2 text-right text-yellow-400">買點</th>
+                                <th class="px-2 py-2 text-right">空間</th>
                             </tr>
                         </thead>
                         <tbody id="watchlistBody" class="divide-y divide-slate-700"></tbody>
@@ -115,44 +109,42 @@
             </div>
         </div>
 
-        <!-- 右侧：499雷达 & 持仓 -->
+        <!-- 右側：499雷達 & 持倉 -->
         <div class="lg:col-span-2 space-y-6">
             
-            <!-- 🔥 核心功能：499 大户雷达 -->
+            <!-- 🔥 499 大戶雷達 -->
             <div class="card p-5 relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-20 h-20 bg-red-500/10 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold border-l-4 border-red-500 pl-3 flex items-center">
-                        📡 499 大户雷达 
-                        <span class="ml-2 text-xs bg-red-900 text-red-300 px-2 py-0.5 rounded animate-pulse">LIVE 监控中</span>
+                        📡 499 大戶雷達 
+                        <span class="ml-2 text-xs bg-red-900 text-red-300 px-2 py-0.5 rounded animate-pulse">LIVE</span>
                     </h2>
-                    <button onclick="scanBigOrders()" class="text-xs bg-red-900/50 hover:bg-red-900 text-white px-3 py-1 rounded border border-red-700">🚀 立即扫描</button>
+                    <button onclick="scanBigOrders()" class="text-xs bg-red-900/50 hover:bg-red-900 text-white px-3 py-1 rounded border border-red-700">🚀 掃描</button>
                 </div>
                 
                 <div class="overflow-x-auto max-h-64 bg-black/20 rounded-lg border border-slate-700/50">
                     <table class="w-full text-sm text-left">
                         <thead class="text-xs text-slate-400 uppercase bg-slate-800 sticky top-0 z-10">
                             <tr>
-                                <th class="px-4 py-3">时间</th>
+                                <th class="px-4 py-3">時間</th>
                                 <th class="px-4 py-3">股票</th>
-                                <th class="px-4 py-3 text-right">大单成交 (张)</th>
-                                <th class="px-4 py-3 text-right">成交价</th>
-                                <th class="px-4 py-3 text-right">金额 (万)</th>
-                                <th class="px-4 py-3 text-center">操作</th>
+                                <th class="px-4 py-3 text-right">大單 (張)</th>
+                                <th class="px-4 py-3 text-right">成交價</th>
+                                <th class="px-4 py-3 text-right">金額 (萬)</th>
                             </tr>
                         </thead>
                         <tbody id="bigOrderBody" class="divide-y divide-slate-700">
-                            <tr><td colspan="6" class="text-center py-12 text-slate-500">等待 499 大单讯号出现...</td></tr>
+                            <tr><td colspan="5" class="text-center py-12 text-slate-500">等待 499 大單訊號...</td></tr>
                         </tbody>
                     </table>
                 </div>
-                <p class="text-xs text-slate-500 mt-2 text-right">* 监控逻辑：侦测即时单笔成交量 >= 499 张</p>
             </div>
 
-            <!-- 持仓管理 -->
+            <!-- 持倉管理 -->
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold border-l-4 border-purple-400 pl-3">💼 持仓损益</h2>
+                    <h2 class="text-xl font-bold border-l-4 border-purple-400 pl-3">💼 持倉損益</h2>
                     <span id="totalProfit" class="text-2xl font-bold text-white">0</span>
                 </div>
                 <div class="overflow-x-auto">
@@ -161,10 +153,10 @@
                             <tr>
                                 <th class="px-4 py-3">股票</th>
                                 <th class="px-4 py-3 text-right">成本</th>
-                                <th class="px-4 py-3 text-right">现价</th>
-                                <th class="px-4 py-3 text-right">库存</th>
-                                <th class="px-4 py-3 text-right">损益</th>
-                                <th class="px-4 py-3 text-center">删除</th>
+                                <th class="px-4 py-3 text-right">現價</th>
+                                <th class="px-4 py-3 text-right">庫存</th>
+                                <th class="px-4 py-3 text-right">損益</th>
+                                <th class="px-4 py-3 text-center">刪除</th>
                             </tr>
                         </thead>
                         <tbody id="portfolioBody" class="divide-y divide-slate-700"></tbody>
@@ -175,13 +167,23 @@
     </div>
 
     <script>
-        // 🔑 API 设定
+        // 🔑 API 設定
         const FUGLE_KEY = "OGNiYzc2YmQtMzdjYS00NTJkLWI1ZGUtNjY1ODRhNTMwNTAxIDhlMTRiMDVkLTk0NzItNDUzMi05NjY2LTkzYjlhMTQ5NzBjMw==";
         const FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNS0xMS0yNyAxMjoyOToyOSIsInVzZXJfaWQiOiJMSU5QRyIsImlwIjoiMS4xNzAuMTE0LjIwIn0.SyyVMOX2eF6uNVO3EZpkRylFrQqFFXjH1PJcM5oFQt0";
 
-        // 🎯 监控池 (热门股 + 权值股，因为大单通常出现在这些股票)
-        const SCAN_POOL = ['2330','2317','2454','2603','2609','2615','2881','2308','3037','2382','3231','6669','2303','2882','1513','1519','2356','2376'];
-        const WATCH_LIST_IDS = ['2330', '2317', '2454', '2603', '2881'];
+        // 🏭 產業分類清單 (擴充)
+        const INDUSTRY_LIST = {
+            '半導體': ['2330', '2454', '2303', '3034', '3711'],
+            'AI伺服器': ['2382', '3231', '6669', '2356', '2301'],
+            '電腦周邊': ['2317', '2357', '2324', '3017'],
+            '航運': ['2603', '2609', '2615', '2618'],
+            '金融': ['2881', '2882', '2891', '2886', '2884'],
+            '重電綠能': ['1513', '1519', '1514', '1504'],
+            '其他權值': ['2002', '1101', '1303', '2912']
+        };
+        
+        // 整合掃描池 (所有產業股票總集)
+        const SCAN_POOL = Object.values(INDUSTRY_LIST).flat();
         
         let currentStock = null;
         let portfolio = JSON.parse(localStorage.getItem('pro_portfolio_v3')) || [];
@@ -190,20 +192,164 @@
             renderPortfolio();
             refreshWatchlist();
             setInterval(updatePortfolioPrices, 60000);
-            
-            // 自动启动大单扫描 (模拟盘中每 10 秒扫一次)
-            // 注意：真实 Fugle 免费版有每分钟 60 次限制，这里我们需要控制频率
-            setInterval(scanBigOrders, 15000); 
+            setInterval(scanBigOrders, 15000); // 499 雷達頻率
         };
 
-        // 🔥 核心功能：499 大单扫描
+        // 🔄 產業觀察名單刷新 (分組顯示)
+        async function refreshWatchlist() {
+            const tbody = document.getElementById('watchlistBody');
+            tbody.innerHTML = '';
+            
+            // 遍歷每個產業
+            for (const [industryName, stocks] of Object.entries(INDUSTRY_LIST)) {
+                // 插入產業標題列
+                const headerRow = `
+                    <tr><td colspan="4" class="industry-header sticky top-8 z-0">
+                        📂 ${industryName} <span class="float-right text-[10px] opacity-70">更新中...</span>
+                    </td></tr>`;
+                tbody.innerHTML += headerRow;
+
+                // 抓取該產業股票
+                for (const id of stocks) {
+                    try {
+                        const quote = await fetchFugleQuote(id);
+                        const history = await fetchFinMindHistory(id);
+                        
+                        let buyPoint = quote.lastPrice * 0.9;
+                        if(history.length >= 5) buyPoint = Math.min(...history.slice(-5).map(d => d.min));
+                        
+                        const diff = ((quote.lastPrice - buyPoint) / buyPoint * 100).toFixed(1);
+                        const diffClass = diff < 2 ? 'text-profit animate-pulse' : 'text-slate-400';
+                        const color = quote.change >= 0 ? 'text-profit' : 'text-loss';
+
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-slate-700 cursor-pointer border-b border-slate-700/50" onclick="analyzeStock('${id}')">
+                                <td class="px-2 py-2 font-bold text-white">
+                                    ${quote.name} <span class="text-[10px] text-slate-500">${id}</span>
+                                </td>
+                                <td class="px-2 py-2 text-right ${color}">${quote.lastPrice}</td>
+                                <td class="px-2 py-2 text-right font-mono buy-point text-xs">${buyPoint.toFixed(1)}</td>
+                                <td class="px-2 py-2 text-right text-xs ${diffClass}">${diff}%</td>
+                            </tr>
+                        `;
+                    } catch(e){}
+                }
+            }
+        }
+
+        // 🔥 499 大單掃描 (維持 v3.3 邏輯)
         async function scanBigOrders() {
             const tbody = document.getElementById('bigOrderBody');
-            
-            // 如果还是初始状态，清空
             if(tbody.innerHTML.includes('等待')) tbody.innerHTML = '';
-            
-            // 随机取 3 档股票来检查 (避免一次 request 太多被锁 IP)
             const randomTargets = SCAN_POOL.sort(() => 0.5 - Math.random()).slice(0, 3);
 
             for (const id of randomTargets) {
+                try {
+                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, {
+                        headers: { "X-API-KEY": FUGLE_KEY }
+                    });
+                    const json = await res.json();
+                    const trade = json.lastTrade;
+                    
+                    // 為了展示先設 100，實際請改 499
+                    if (trade && trade.unit >= 100) {
+                        const time = new Date(json.lastUpdated / 1000).toLocaleTimeString();
+                        const amount = Math.round((trade.price * trade.unit * 1000) / 10000);
+                        const rowHTML = `
+                            <tr class="big-order-row border-b border-slate-700 cursor-pointer hover:bg-slate-700" onclick="analyzeStock('${id}')">
+                                <td class="px-4 py-3 text-slate-400 font-mono text-xs">${time}</td>
+                                <td class="px-4 py-3 font-bold text-white">${json.name}</td>
+                                <td class="px-4 py-3 text-right text-yellow-400 font-bold text-lg">⚡ ${trade.unit}</td>
+                                <td class="px-4 py-3 text-right text-white">${trade.price}</td>
+                                <td class="px-4 py-3 text-right text-slate-400">${amount.toLocaleString()}</td>
+                            </tr>
+                        `;
+                        tbody.insertAdjacentHTML('afterbegin', rowHTML);
+                        if(tbody.rows.length > 50) tbody.deleteRow(-1);
+                    }
+                } catch(e) {}
+            }
+        }
+
+        // 🛠️ 核心分析 (維持不變)
+        async function analyzeStock(inputId = null) {
+            const stockId = inputId || document.getElementById('stockInput').value.trim();
+            if (!stockId) return alert("請輸入代碼");
+            const btn = document.querySelector('button[onclick="analyzeStock()"]');
+            if(btn) btn.innerText = "...";
+            try {
+                const [fugleData, historyData] = await Promise.all([fetchFugleQuote(stockId), fetchFinMindHistory(stockId)]);
+                let buyPoint = 0, score = 50;
+                if (historyData.length >= 5) {
+                    buyPoint = Math.min(...historyData.slice(-5).map(d => d.min));
+                    const ma5 = historyData.slice(-5).reduce((s, d) => s + d.close, 0) / 5;
+                    if (fugleData.lastPrice > ma5) score += 20; else score -= 10;
+                } else { buyPoint = fugleData.lastPrice * 0.95; }
+                currentStock = { id: stockId, name: fugleData.name, price: fugleData.lastPrice, buyPoint: buyPoint, score: score };
+                updateAnalysisUI(currentStock, fugleData);
+            } catch (e) { alert("分析失敗"); } 
+            finally { if(btn) btn.innerText = "分析"; }
+        }
+
+        // API 封裝
+        async function fetchFugleQuote(id) {
+            const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
+            return await res.json();
+        }
+        async function fetchFinMindHistory(id) {
+            const startDate = new Date(Date.now() - 20 * 86400000).toISOString().split('T')[0];
+            const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${startDate}&token=${FINMIND_TOKEN}`);
+            const json = await res.json();
+            return json.data || [];
+        }
+        function updateAnalysisUI(stock, fugle) {
+            document.getElementById('analysisResult').classList.remove('hidden');
+            document.getElementById('stockNameDisplay').innerText = `${stock.name} (${stock.id})`;
+            const color = fugle.change >= 0 ? 'text-profit' : 'text-loss';
+            document.getElementById('currentPrice').innerText = stock.price;
+            document.getElementById('currentPrice').className = `text-4xl font-bold ${color}`;
+            document.getElementById('priceChange').innerText = `${fugle.change} (${(fugle.changePercent*100).toFixed(2)}%)`;
+            document.getElementById('priceChange').className = `text-base font-bold ${color}`;
+            const diff = ((stock.price - stock.buyPoint) / stock.buyPoint * 100).toFixed(1);
+            document.getElementById('recommendBuy').innerText = stock.buyPoint.toFixed(1);
+            document.getElementById('diffText').innerText = `距現價 ${diff}%`;
+            document.getElementById('aiScore').innerText = stock.score;
+            document.getElementById('scoreBar').style.width = `${stock.score}%`;
+        }
+        function addToPortfolio() {
+            if (!currentStock) return;
+            const qty = prompt("輸入張數:", "1");
+            if(!qty) return;
+            portfolio.push({ id: currentStock.id, name: currentStock.name, cost: currentStock.price, qty: parseFloat(qty), curr: currentStock.price });
+            saveAndRender();
+        }
+        function renderPortfolio() {
+            const tbody = document.getElementById('portfolioBody');
+            let totalPnL = 0;
+            tbody.innerHTML = '';
+            portfolio.forEach((p, i) => {
+                const profit = (p.curr - p.cost) * p.qty * 1000;
+                totalPnL += profit;
+                const color = profit >= 0 ? 'text-profit' : 'text-loss';
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/50">
+                        <td class="px-4 py-3 font-bold text-white">${p.name}</td>
+                        <td class="px-4 py-3 text-right">${p.cost}</td>
+                        <td class="px-4 py-3 text-right text-white">${p.curr}</td>
+                        <td class="px-4 py-3 text-right">${p.qty}</td>
+                        <td class="px-4 py-3 text-right font-bold ${color}">${Math.round(profit)}</td>
+                        <td class="px-4 py-3 text-center"><button onclick="removeP(${i})" class="text-red-400">✕</button></td>
+                    </tr>`;
+            });
+            document.getElementById('totalProfit').innerText = Math.round(totalPnL).toLocaleString();
+            document.getElementById('totalProfit').className = `text-2xl font-bold ${totalPnL >= 0 ? 'text-profit' : 'text-loss'}`;
+        }
+        function removeP(i) { portfolio.splice(i, 1); saveAndRender(); }
+        function saveAndRender() { localStorage.setItem('pro_portfolio_v3', JSON.stringify(portfolio)); renderPortfolio(); }
+        async function updatePortfolioPrices() {
+            for(let p of portfolio) { try { const q = await fetchFugleQuote(p.id); if(q.lastPrice) p.curr = q.lastPrice; } catch(e){} }
+            saveAndRender();
+        }
+    </script>
+</body>
+</html>
