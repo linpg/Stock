@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板</title>
+    <title>台股雙引擎儀表板 v5.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -25,8 +25,11 @@
         
         .buy-icon { font-size: 1rem; animation: bounce 1s infinite; display: inline-block; }
         @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-        .big-order-row { animation: flash 2s infinite; }
-        @keyframes flash { 0% { background-color: rgba(239, 68, 68, 0.1); } 50% { background-color: rgba(239, 68, 68, 0.3); } 100% { background-color: rgba(239, 68, 68, 0.1); } }
+        
+        /* 五檔報價樣式 */
+        .order-book-row { font-family: monospace; font-size: 0.85rem; }
+        .bid-bar { background-color: rgba(239, 68, 68, 0.2); height: 100%; border-radius: 2px; transition: width 0.3s; }
+        .ask-bar { background-color: rgba(34, 197, 94, 0.2); height: 100%; border-radius: 2px; transition: width 0.3s; }
         
         .modal-overlay { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(2px); }
         #alertModal { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -88,7 +91,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v4.4 分析修復版 | 容錯機制增強</p>
+            <p class="text-slate-400 text-sm mt-1">v5.0 深度五檔 + 極速監控</p>
         </div>
         <div class="text-right">
             <div id="updateTime" class="text-xs text-slate-500">更新中...</div>
@@ -97,6 +100,7 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
+        <!-- 左側：個股診斷 (含五檔) -->
         <div class="lg:col-span-1 space-y-6">
             <div class="card p-5">
                 <h2 class="text-xl font-bold mb-4 border-l-4 border-cyan-400 pl-3">🔍 個股診斷</h2>
@@ -117,6 +121,27 @@
                         </div>
                     </div>
 
+                    <!-- 🔥 新增：最佳五檔 (Order Book) -->
+                    <div class="bg-slate-900/50 p-2 rounded border border-slate-700 text-xs">
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- 買單 (Bid) -->
+                            <div>
+                                <div class="text-center text-slate-500 mb-1">委買量 / 買價</div>
+                                <div id="bidTable" class="space-y-1">
+                                    <!-- JS 動態生成 -->
+                                </div>
+                            </div>
+                            <!-- 賣單 (Ask) -->
+                            <div>
+                                <div class="text-center text-slate-500 mb-1">賣價 / 委賣量</div>
+                                <div id="askTable" class="space-y-1">
+                                    <!-- JS 動態生成 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KDJ & 買點 -->
                     <div class="grid grid-cols-3 gap-2 text-center bg-slate-800 p-2 rounded border border-slate-700">
                         <div><div class="text-xs text-slate-500">K值</div><div id="kVal" class="font-mono font-bold text-white">--</div></div>
                         <div><div class="text-xs text-slate-500">D值</div><div id="dVal" class="font-mono font-bold text-white">--</div></div>
@@ -140,6 +165,7 @@
                 </div>
             </div>
 
+            <!-- 📋 觀察股票名單 -->
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold border-l-4 border-yellow-400 pl-3">📋 觀察股票名單</h2>
@@ -162,6 +188,7 @@
             </div>
         </div>
 
+        <!-- 右側：大戶雷達 & 持倉 -->
         <div class="lg:col-span-2 space-y-6">
             
             <div class="card p-5 relative overflow-hidden">
@@ -169,7 +196,7 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold border-l-4 border-yellow-500 pl-3 flex items-center">
                         📡 大戶雷達 
-                        <span class="ml-2 text-xs bg-yellow-900 text-yellow-300 px-2 py-0.5 rounded animate-pulse">LIVE</span>
+                        <span class="ml-2 text-xs bg-yellow-900 text-yellow-300 px-2 py-0.5 rounded animate-pulse">LIVE (極速)</span>
                     </h2>
                     <button onclick="scanBigOrders()" class="text-xs bg-yellow-900/50 hover:bg-yellow-900 text-white px-3 py-1 rounded border border-yellow-700">🚀 掃描</button>
                 </div>
@@ -181,7 +208,7 @@
                                 <th class="px-4 py-3">股票</th>
                                 <th class="px-4 py-3 text-right">大單(張)</th>
                                 <th class="px-4 py-3 text-right">成交價</th>
-                                <th class="px-4 py-3">主力動態 (當日)</th>
+                                <th class="px-4 py-3">主力動態</th>
                                 <th class="px-4 py-3 text-center">操作</th>
                             </tr>
                         </thead>
@@ -190,7 +217,6 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="text-xs text-slate-500 mt-2 text-right">* 監控：單筆 > 100 張 且 外盤成交佔比高</p>
             </div>
 
             <div class="card p-5">
@@ -240,42 +266,11 @@
         window.onload = () => {
             renderPortfolio();
             refreshWatchlist();
-            setInterval(updatePortfolioPrices, 60000);
-            setInterval(scanBigOrders, 15000); 
+            setInterval(updatePortfolioPrices, 30000); // 更新頻率加快
+            setInterval(scanBigOrders, 5000); // 🔥 極速掃描 (5秒)
         };
 
-        function showAlert(stockName, price, vol, time) {
-            if (Date.now() - lastAlertTime < 5000) return;
-            lastAlertTime = Date.now();
-            const modal = document.getElementById('bigOrderAlert');
-            document.getElementById('alertTime').innerText = time;
-            document.getElementById('alertStock').innerText = stockName;
-            document.getElementById('alertPrice').innerText = price;
-            document.getElementById('alertVol').innerText = vol;
-            modal.classList.remove('hidden');
-            try { document.getElementById('alertSound').play(); } catch(e){}
-            setTimeout(() => { modal.classList.add('hidden'); }, 5000);
-        }
-        function closeAlert() { document.getElementById('bigOrderAlert').classList.add('hidden'); }
-
-        function calculateKDJ(historyData) {
-            if (!historyData || historyData.length < 9) return null;
-            let k = 50, d = 50;
-            const startIdx = Math.max(0, historyData.length - 20); 
-            for (let i = startIdx; i < historyData.length; i++) {
-                const slice = historyData.slice(Math.max(0, i - 8), i + 1);
-                const close = historyData[i].close;
-                const high9 = Math.max(...slice.map(d => d.max));
-                const low9 = Math.min(...slice.map(d => d.min));
-                let rsv = 50;
-                if (high9 !== low9) rsv = ((close - low9) / (high9 - low9)) * 100;
-                k = (2/3) * k + (1/3) * rsv;
-                d = (2/3) * d + (1/3) * k;
-            }
-            return { k: k, d: d, j: 3*k - 2*d };
-        }
-
-        // 🛠️ 容錯核心分析
+        // 🛠️ 核心分析 (含五檔)
         async function analyzeStock(inputId = null) {
             const stockId = inputId || document.getElementById('stockInput').value.trim();
             if (!stockId) return alert("請輸入代碼");
@@ -283,49 +278,60 @@
             if(btn) btn.innerText = "...";
             
             try {
-                // 1. 抓即時資料 (必須成功)
                 const fugleData = await fetchFugleQuote(stockId);
-                if (!fugleData || !fugleData.lastPrice) {
-                    throw new Error("Fugle 報價失敗或休市中");
-                }
+                if (!fugleData || !fugleData.lastPrice) throw new Error("Fugle 報價失敗");
 
-                // 2. 抓歷史資料 (允許失敗)
                 let historyData = [];
-                try {
-                    historyData = await fetchFinMindHistory(stockId);
-                } catch (err) {
-                    console.warn("歷史資料抓取失敗，將僅顯示即時報價", err);
-                }
+                try { historyData = await fetchFinMindHistory(stockId); } catch (err) {}
 
-                // 3. 計算 KDJ & 買點
                 const kdj = calculateKDJ(historyData);
-                let buyPoint = 0;
-                
-                if (historyData.length >= 5) {
-                    buyPoint = Math.min(...historyData.slice(-5).map(d => d.min));
-                } else {
-                    // 歷史資料不足時的備援邏輯
-                    buyPoint = fugleData.lastPrice * 0.95; 
-                }
+                let buyPoint = historyData.length >= 5 ? Math.min(...historyData.slice(-5).map(d => d.min)) : fugleData.lastPrice * 0.95;
 
-                currentStock = { 
-                    id: stockId, 
-                    name: fugleData.name, 
-                    price: fugleData.lastPrice, 
-                    buyPoint: buyPoint, 
-                    kdj: kdj // 可能為 null
-                };
-                
+                currentStock = { id: stockId, name: fugleData.name, price: fugleData.lastPrice, buyPoint: buyPoint, kdj: kdj };
                 updateAnalysisUI(currentStock, fugleData);
+                
+                // 🔥 渲染五檔
+                renderOrderBook(fugleData.bids, fugleData.asks);
 
-            } catch (e) { 
-                console.error(e);
-                alert("分析失敗: " + e.message); 
-            } finally { 
-                if(btn) btn.innerText = "分析"; 
-            }
+            } catch (e) { console.error(e); alert("分析失敗: " + e.message); } 
+            finally { if(btn) btn.innerText = "分析"; }
         }
 
+        // 📊 渲染五檔表格
+        function renderOrderBook(bids, asks) {
+            const bidEl = document.getElementById('bidTable');
+            const askEl = document.getElementById('askTable');
+            bidEl.innerHTML = ''; askEl.innerHTML = '';
+
+            // 如果沒有五檔資料 (休市或權限不足)
+            if (!bids || !asks) {
+                bidEl.innerHTML = '<div class="text-center text-xs text-slate-600">無數據</div>';
+                return;
+            }
+
+            // 顯示前 5 檔 (Fugle bids 是由高到低，asks 是由低到高)
+            bids.slice(0, 5).forEach(b => {
+                const width = Math.min(100, (b.volume / 50) * 100); // 簡易長度條
+                bidEl.innerHTML += `
+                    <div class="flex justify-between items-center order-book-row relative">
+                        <div class="absolute right-0 top-0 bottom-0 bid-bar" style="width: ${width}%"></div>
+                        <span class="text-white z-10">${b.volume}</span>
+                        <span class="text-profit font-bold z-10">${b.price}</span>
+                    </div>`;
+            });
+
+            asks.slice(0, 5).reverse().forEach(a => { // 賣單要倒過來顯示 (價格高的在上面)
+                const width = Math.min(100, (a.volume / 50) * 100);
+                askEl.innerHTML += `
+                    <div class="flex justify-between items-center order-book-row relative">
+                        <div class="absolute left-0 top-0 bottom-0 ask-bar" style="width: ${width}%"></div>
+                        <span class="text-loss font-bold z-10">${a.price}</span>
+                        <span class="text-white z-10">${a.volume}</span>
+                    </div>`;
+            });
+        }
+
+        // 其他功能維持 v4.4 的容錯版邏輯...
         function updateAnalysisUI(stock, fugle) {
             document.getElementById('analysisResult').classList.remove('hidden');
             document.getElementById('stockNameDisplay').innerText = `${stock.name} (${stock.id})`;
@@ -341,8 +347,6 @@
 
             const badge = document.getElementById('kdjStatusBadge');
             const icon = document.getElementById('buySignalIcon');
-            
-            // KDJ UI 容錯顯示
             if (stock.kdj) {
                 const { k, d, j } = stock.kdj;
                 document.getElementById('kVal').innerText = k.toFixed(1);
@@ -352,35 +356,34 @@
                 else if (k < 20) { badge.innerText = "💎 超賣"; badge.className="text-xs bg-green-900 text-green-300 px-2 py-1 rounded"; }
                 else { badge.innerText = "徘徊區"; badge.className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded"; }
             } else {
-                // 資料不足時的顯示
                 document.getElementById('kVal').innerText = "--";
                 document.getElementById('dVal').innerText = "--";
                 document.getElementById('jVal').innerText = "--";
                 badge.innerText = "資料不足";
-                badge.className = "text-xs bg-slate-700 text-slate-500 px-2 py-1 rounded";
             }
-            
             if (diff < 2) { icon.classList.remove('hidden'); } else { icon.classList.add('hidden'); }
         }
 
         async function fetchFugleQuote(id) {
             const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
-            return await res.json();
+            const json = await res.json();
+            return {
+                ...json,
+                // 模擬五檔數據 (如果 API 沒回傳，用假資料填充避免壞掉)
+                bids: json.order?.bids || [],
+                asks: json.order?.asks || []
+            };
         }
         
-        // 修復 FinMind API 參數
         async function fetchFinMindHistory(id) {
-            const startDate = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0]; // 抓更久一點的資料保險
+            const startDate = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0];
             const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${startDate}&token=${FINMIND_TOKEN}`);
             const json = await res.json();
-            if (json.msg === 'success' && json.data) {
-                return json.data;
-            } else {
-                throw new Error("FinMind 回傳空值");
-            }
+            if (json.msg === 'success' && json.data) return json.data;
+            throw new Error("FinMind error");
         }
 
-        // 持倉相關與 Modal 相關
+        // Modal & 持倉
         function openAddModal() {
             if (!currentStock) return alert("請先分析一檔股票");
             document.getElementById('modalStockName').value = `${currentStock.name} (${currentStock.id})`;
@@ -428,11 +431,29 @@
         }
         function removeP(i) { portfolio.splice(i, 1); saveAndRender(); }
         function saveAndRender() { localStorage.setItem('pro_portfolio_v3', JSON.stringify(portfolio)); renderPortfolio(); }
+        
+        // KDJ 輔助
+        function calculateKDJ(historyData) {
+            if (!historyData || historyData.length < 9) return null;
+            let k = 50, d = 50;
+            const startIdx = Math.max(0, historyData.length - 20); 
+            for (let i = startIdx; i < historyData.length; i++) {
+                const slice = historyData.slice(Math.max(0, i - 8), i + 1);
+                const close = historyData[i].close;
+                const high9 = Math.max(...slice.map(d => d.max));
+                const low9 = Math.min(...slice.map(d => d.min));
+                let rsv = 50;
+                if (high9 !== low9) rsv = ((close - low9) / (high9 - low9)) * 100;
+                k = (2/3) * k + (1/3) * rsv;
+                d = (2/3) * d + (1/3) * k;
+            }
+            return { k: k, d: d, j: 3*k - 2*d };
+        }
+
         async function updatePortfolioPrices() {
             for(let p of portfolio) { try { const q = await fetchFugleQuote(p.id); if(q.lastPrice) p.curr = q.lastPrice; const h = await fetchFinMindHistory(p.id); const kdj = calculateKDJ(h); if(kdj) { if(kdj.k > 80) p.kdjState = 'high'; else if(kdj.k < 20) p.kdjState = 'low'; else p.kdjState = 'mid'; } } catch(e){} }
             saveAndRender();
         }
-        // 觀察名單與大戶掃描功能保留不變...
         async function refreshWatchlist() {
             const tbody = document.getElementById('watchlistBody');
             tbody.innerHTML = '';
@@ -441,7 +462,7 @@
                 for (const id of stocks) {
                     try {
                         const quote = await fetchFugleQuote(id);
-                        const history = await fetchFinMindHistory(id);
+                        const history = await fetchFinMindHistory(id); // 可能失敗，需 try catch
                         const kdj = calculateKDJ(history);
                         let kdjBadge = '<span class="text-slate-500">-</span>';
                         if (kdj) {
@@ -466,6 +487,19 @@
                 }
             }
         }
+        function showAlert(stockName, price, vol, time) {
+            if (Date.now() - lastAlertTime < 5000) return;
+            lastAlertTime = Date.now();
+            const modal = document.getElementById('bigOrderAlert');
+            document.getElementById('alertTime').innerText = time;
+            document.getElementById('alertStock').innerText = stockName;
+            document.getElementById('alertPrice').innerText = price;
+            document.getElementById('alertVol').innerText = vol;
+            modal.classList.remove('hidden');
+            try { document.getElementById('alertSound').play(); } catch(e){}
+            setTimeout(() => { modal.classList.add('hidden'); }, 5000);
+        }
+        function closeAlert() { document.getElementById('bigOrderAlert').classList.add('hidden'); }
         async function scanBigOrders() {
             const tbody = document.getElementById('bigOrderBody');
             if(tbody.innerHTML.includes('等待')) tbody.innerHTML = '';
