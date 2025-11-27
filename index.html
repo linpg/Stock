@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v4.2 (彈窗修復+持倉KDJ)</title>
+    <title>台股雙引擎儀表板</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -16,7 +16,6 @@
         .buy-point { color: #facc15; font-weight: bold; }
         .industry-header { background: #334155; color: #94a3b8; font-size: 0.75rem; font-weight: bold; padding: 4px 12px; }
         
-        /* KDJ 狀態標籤 */
         .kdj-tag { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; display: inline-block; width: 60px; text-align: center; }
         .kdj-overbought { background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; }
         .kdj-oversold { background-color: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; }
@@ -29,9 +28,10 @@
         .big-order-row { animation: flash 2s infinite; }
         @keyframes flash { 0% { background-color: rgba(239, 68, 68, 0.1); } 50% { background-color: rgba(239, 68, 68, 0.3); } 100% { background-color: rgba(239, 68, 68, 0.1); } }
         
-        /* Modal 樣式 */
-        .modal-overlay { background-color: rgba(0, 0, 0, 0.7); }
-        
+        .modal-overlay { background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(2px); }
+        #alertModal { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
@@ -39,7 +39,7 @@
 </head>
 <body class="p-4 md:p-8 relative">
 
-    <!-- 自定義彈窗 (Modal) -->
+    <!-- 自定義彈窗 (加入持倉) -->
     <div id="addPortfolioModal" class="fixed inset-0 z-50 hidden flex items-center justify-center modal-overlay">
         <div class="bg-slate-800 rounded-lg border border-slate-600 p-6 w-full max-w-sm shadow-2xl">
             <h3 class="text-xl font-bold text-white mb-4">📥 加入持倉</h3>
@@ -62,11 +62,33 @@
         </div>
     </div>
 
-    <!-- 頂部導航 -->
+    <!-- 🔔 大單警示彈窗 -->
+    <div id="bigOrderAlert" class="fixed inset-0 z-[60] hidden flex items-center justify-center pointer-events-none">
+        <div id="alertModal" class="bg-gradient-to-b from-slate-700 to-slate-900 rounded-xl border-2 border-yellow-500 p-0 w-80 shadow-2xl pointer-events-auto overflow-hidden">
+            <div class="bg-gradient-to-r from-slate-800 to-slate-700 p-3 border-b border-slate-600 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white flex items-center"><span class="mr-2 text-yellow-400">🔔</span> 提示訊息</h3>
+                <button onclick="closeAlert()" class="text-slate-400 hover:text-white text-xl">×</button>
+            </div>
+            <div class="p-6 text-center">
+                <p id="alertTime" class="text-sm text-slate-400 mb-2">--:--</p>
+                <h4 id="alertStock" class="text-2xl font-bold text-white mb-1">--</h4>
+                <p class="text-lg text-slate-300">現價 <span id="alertPrice" class="text-profit font-bold">--</span></p>
+                <div class="mt-4 bg-slate-800/50 rounded p-2 border border-slate-700">
+                    <p class="text-yellow-400 font-bold text-xl">⚡ 單量 <span id="alertVol">--</span> 張</p>
+                    <p class="text-xs text-slate-500 mt-1">超過設定門檻 (100)</p>
+                </div>
+            </div>
+            <div class="flex border-t border-slate-600">
+                <button onclick="closeAlert()" class="flex-1 py-3 text-slate-300 hover:bg-slate-700 transition">忽略</button>
+                <button onclick="closeAlert()" class="flex-1 py-3 text-cyan-400 font-bold hover:bg-slate-700 transition border-l border-slate-600">確認</button>
+            </div>
+        </div>
+    </div>
+
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v4.2 彈窗修復版 | 持倉 KDJ 提示</p>
+            <p class="text-slate-400 text-sm mt-1">v4.4 分析修復版 | 容錯機制增強</p>
         </div>
         <div class="text-right">
             <div id="updateTime" class="text-xs text-slate-500">更新中...</div>
@@ -75,7 +97,6 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <!-- 左側：個股診斷 -->
         <div class="lg:col-span-1 space-y-6">
             <div class="card p-5">
                 <h2 class="text-xl font-bold mb-4 border-l-4 border-cyan-400 pl-3">🔍 個股診斷</h2>
@@ -96,14 +117,12 @@
                         </div>
                     </div>
 
-                    <!-- KDJ 指標卡片 -->
                     <div class="grid grid-cols-3 gap-2 text-center bg-slate-800 p-2 rounded border border-slate-700">
                         <div><div class="text-xs text-slate-500">K值</div><div id="kVal" class="font-mono font-bold text-white">--</div></div>
                         <div><div class="text-xs text-slate-500">D值</div><div id="dVal" class="font-mono font-bold text-white">--</div></div>
                         <div><div class="text-xs text-slate-500">J值</div><div id="jVal" class="font-mono font-bold text-white">--</div></div>
                     </div>
 
-                    <!-- 買點建議 -->
                     <div class="bg-slate-800/80 p-3 rounded-lg border border-yellow-600/30 mt-2 flex justify-between items-center">
                         <div>
                             <div class="text-sm text-slate-400">🎯 建議買點</div>
@@ -121,7 +140,6 @@
                 </div>
             </div>
 
-            <!-- 📋 觀察股票名單 -->
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold border-l-4 border-yellow-400 pl-3">📋 觀察股票名單</h2>
@@ -144,10 +162,8 @@
             </div>
         </div>
 
-        <!-- 右側：大戶雷達 & 持倉 -->
         <div class="lg:col-span-2 space-y-6">
             
-            <!-- 🔥 大戶雷達 -->
             <div class="card p-5 relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-20 h-20 bg-yellow-500/10 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
                 <div class="flex justify-between items-center mb-4">
@@ -177,7 +193,6 @@
                 <p class="text-xs text-slate-500 mt-2 text-right">* 監控：單筆 > 100 張 且 外盤成交佔比高</p>
             </div>
 
-            <!-- 持倉管理 (新增 KDJ 欄位) -->
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold border-l-4 border-purple-400 pl-3">💼 持倉損益</h2>
@@ -192,7 +207,7 @@
                                 <th class="px-4 py-3 text-right">現價</th>
                                 <th class="px-4 py-3 text-right">庫存</th>
                                 <th class="px-4 py-3 text-right">損益</th>
-                                <th class="px-4 py-3 text-center">KDJ訊號</th> <!-- 新增 -->
+                                <th class="px-4 py-3 text-center">KDJ訊號</th>
                                 <th class="px-4 py-3 text-center">刪除</th>
                             </tr>
                         </thead>
@@ -203,8 +218,9 @@
         </div>
     </div>
 
+    <audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
     <script>
-        // 🔑 API 設定
         const FUGLE_KEY = "OGNiYzc2YmQtMzdjYS00NTJkLWI1ZGUtNjY1ODRhNTMwNTAxIDhlMTRiMDVkLTk0NzItNDUzMi05NjY2LTkzYjlhMTQ5NzBjMw==";
         const FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNS0xMS0yNyAxMjoyOToyOSIsInVzZXJfaWQiOiJMSU5QRyIsImlwIjoiMS4xNzAuMTE0LjIwIn0.SyyVMOX2eF6uNVO3EZpkRylFrQqFFXjH1PJcM5oFQt0";
 
@@ -219,6 +235,7 @@
         
         let currentStock = null;
         let portfolio = JSON.parse(localStorage.getItem('pro_portfolio_v3')) || [];
+        let lastAlertTime = 0;
 
         window.onload = () => {
             renderPortfolio();
@@ -227,9 +244,22 @@
             setInterval(scanBigOrders, 15000); 
         };
 
-        // 🧠 KDJ 計算
+        function showAlert(stockName, price, vol, time) {
+            if (Date.now() - lastAlertTime < 5000) return;
+            lastAlertTime = Date.now();
+            const modal = document.getElementById('bigOrderAlert');
+            document.getElementById('alertTime').innerText = time;
+            document.getElementById('alertStock').innerText = stockName;
+            document.getElementById('alertPrice').innerText = price;
+            document.getElementById('alertVol').innerText = vol;
+            modal.classList.remove('hidden');
+            try { document.getElementById('alertSound').play(); } catch(e){}
+            setTimeout(() => { modal.classList.add('hidden'); }, 5000);
+        }
+        function closeAlert() { document.getElementById('bigOrderAlert').classList.add('hidden'); }
+
         function calculateKDJ(historyData) {
-            if (historyData.length < 9) return null;
+            if (!historyData || historyData.length < 9) return null;
             let k = 50, d = 50;
             const startIdx = Math.max(0, historyData.length - 20); 
             for (let i = startIdx; i < historyData.length; i++) {
@@ -245,122 +275,55 @@
             return { k: k, d: d, j: 3*k - 2*d };
         }
 
-        // 🛠️ Modal 控制功能
-        function openAddModal() {
-            if (!currentStock) return alert("請先分析一檔股票");
-            document.getElementById('modalStockName').value = `${currentStock.name} (${currentStock.id})`;
-            document.getElementById('modalCost').value = currentStock.price;
-            document.getElementById('addPortfolioModal').classList.remove('hidden');
-        }
-
-        function closeModal() {
-            document.getElementById('addPortfolioModal').classList.add('hidden');
-        }
-
-        function confirmAddPortfolio() {
-            const qty = parseFloat(document.getElementById('modalQty').value);
-            const cost = parseFloat(document.getElementById('modalCost').value);
-            
-            if (!qty || qty <= 0) return alert("張數錯誤");
-            if (!cost || cost <= 0) return alert("價格錯誤");
-
-            portfolio.push({ 
-                id: currentStock.id, 
-                name: currentStock.name, 
-                cost: cost, 
-                qty: qty, 
-                curr: currentStock.price,
-                kdjState: currentStock.kdj ? (currentStock.kdj.k > 80 ? 'high' : (currentStock.kdj.k < 20 ? 'low' : 'mid')) : 'none'
-            });
-            
-            saveAndRender();
-            closeModal();
-        }
-
-        // 🔄 觀察名單
-        async function refreshWatchlist() {
-            const tbody = document.getElementById('watchlistBody');
-            tbody.innerHTML = '';
-            for (const [industryName, stocks] of Object.entries(INDUSTRY_LIST)) {
-                tbody.innerHTML += `<tr><td colspan="5" class="industry-header sticky top-8 z-0">📂 ${industryName}</td></tr>`;
-                for (const id of stocks) {
-                    try {
-                        const quote = await fetchFugleQuote(id);
-                        const history = await fetchFinMindHistory(id);
-                        const kdj = calculateKDJ(history);
-                        let kdjBadge = '<span class="text-slate-500">-</span>';
-                        if (kdj) {
-                            if (kdj.k > 80) kdjBadge = '<span class="kdj-tag kdj-overbought">超買</span>';
-                            else if (kdj.k < 20) kdjBadge = '<span class="kdj-tag kdj-oversold">超賣</span>';
-                            else kdjBadge = '<span class="kdj-tag kdj-neutral">徘徊</span>';
-                        }
-                        let buyPoint = quote.lastPrice * 0.9;
-                        if(history.length >= 5) buyPoint = Math.min(...history.slice(-5).map(d => d.min));
-                        const diff = ((quote.lastPrice - buyPoint) / buyPoint * 100);
-                        let signalIcon = '';
-                        if (diff < 2 && kdj && kdj.k < 40) signalIcon = '<span class="buy-icon text-yellow-400">🎯</span>';
-                        tbody.innerHTML += `
-                            <tr class="hover:bg-slate-700 cursor-pointer border-b border-slate-700/50" onclick="analyzeStock('${id}')">
-                                <td class="px-2 py-2 font-bold text-white">${quote.name} <span class="text-[10px] text-slate-500">${id}</span></td>
-                                <td class="px-2 py-2 text-right text-slate-300">${quote.lastPrice}</td>
-                                <td class="px-2 py-2 text-center">${kdjBadge}</td>
-                                <td class="px-2 py-2 text-right font-mono buy-point text-xs">${buyPoint.toFixed(1)}</td>
-                                <td class="px-2 py-2 text-center">${signalIcon}</td>
-                            </tr>`;
-                    } catch(e){}
-                }
-            }
-        }
-
-        // 🔥 大戶雷達 (100張)
-        async function scanBigOrders() {
-            const tbody = document.getElementById('bigOrderBody');
-            if(tbody.innerHTML.includes('等待')) tbody.innerHTML = '';
-            const randomTargets = SCAN_POOL.sort(() => 0.5 - Math.random()).slice(0, 3);
-            for (const id of randomTargets) {
-                try {
-                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                    const json = await res.json();
-                    const trade = json.lastTrade;
-                    if (trade && trade.unit >= 100) { 
-                        const buyPower = (json.total.tradeVolumeAtAsk / json.total.tradeVolume) * 100;
-                        let mainForceTag = '<span class="text-xs text-slate-500">中性</span>';
-                        if (buyPower > 55) mainForceTag = `<span class="main-force-tag">🔥 主力積極買進 (${buyPower.toFixed(0)}%)</span>`;
-                        const time = new Date(json.lastUpdated / 1000).toLocaleTimeString();
-                        const amount = Math.round((trade.price * trade.unit * 1000) / 10000);
-                        const rowHTML = `
-                            <tr class="big-order-row border-b border-slate-700 cursor-pointer hover:bg-slate-700" onclick="analyzeStock('${id}')">
-                                <td class="px-4 py-3 text-slate-400 font-mono text-xs">${time}</td>
-                                <td class="px-4 py-3 font-bold text-white">${json.name}</td>
-                                <td class="px-4 py-3 text-right text-yellow-400 font-bold text-lg">⚡ ${trade.unit}</td>
-                                <td class="px-4 py-3 text-right text-white">${trade.price}</td>
-                                <td class="px-4 py-3">${mainForceTag}</td>
-                                <td class="px-4 py-3 text-center"><button class="text-xs bg-cyan-900 text-cyan-300 px-2 py-1 rounded">分析</button></td>
-                            </tr>`;
-                        tbody.insertAdjacentHTML('afterbegin', rowHTML);
-                        if(tbody.rows.length > 50) tbody.deleteRow(-1);
-                    }
-                } catch(e) {}
-            }
-        }
-
-        // 🛠️ 分析
+        // 🛠️ 容錯核心分析
         async function analyzeStock(inputId = null) {
             const stockId = inputId || document.getElementById('stockInput').value.trim();
             if (!stockId) return alert("請輸入代碼");
             const btn = document.querySelector('button[onclick="analyzeStock()"]');
             if(btn) btn.innerText = "...";
+            
             try {
-                const [fugleData, historyData] = await Promise.all([fetchFugleQuote(stockId), fetchFinMindHistory(stockId)]);
+                // 1. 抓即時資料 (必須成功)
+                const fugleData = await fetchFugleQuote(stockId);
+                if (!fugleData || !fugleData.lastPrice) {
+                    throw new Error("Fugle 報價失敗或休市中");
+                }
+
+                // 2. 抓歷史資料 (允許失敗)
+                let historyData = [];
+                try {
+                    historyData = await fetchFinMindHistory(stockId);
+                } catch (err) {
+                    console.warn("歷史資料抓取失敗，將僅顯示即時報價", err);
+                }
+
+                // 3. 計算 KDJ & 買點
                 const kdj = calculateKDJ(historyData);
                 let buyPoint = 0;
+                
                 if (historyData.length >= 5) {
                     buyPoint = Math.min(...historyData.slice(-5).map(d => d.min));
-                } else { buyPoint = fugleData.lastPrice * 0.95; }
-                currentStock = { id: stockId, name: fugleData.name, price: fugleData.lastPrice, buyPoint: buyPoint, kdj: kdj };
+                } else {
+                    // 歷史資料不足時的備援邏輯
+                    buyPoint = fugleData.lastPrice * 0.95; 
+                }
+
+                currentStock = { 
+                    id: stockId, 
+                    name: fugleData.name, 
+                    price: fugleData.lastPrice, 
+                    buyPoint: buyPoint, 
+                    kdj: kdj // 可能為 null
+                };
+                
                 updateAnalysisUI(currentStock, fugleData);
-            } catch (e) { console.error(e); alert("分析失敗"); } 
-            finally { if(btn) btn.innerText = "分析"; }
+
+            } catch (e) { 
+                console.error(e);
+                alert("分析失敗: " + e.message); 
+            } finally { 
+                if(btn) btn.innerText = "分析"; 
+            }
         }
 
         function updateAnalysisUI(stock, fugle) {
@@ -378,6 +341,8 @@
 
             const badge = document.getElementById('kdjStatusBadge');
             const icon = document.getElementById('buySignalIcon');
+            
+            // KDJ UI 容錯顯示
             if (stock.kdj) {
                 const { k, d, j } = stock.kdj;
                 document.getElementById('kVal').innerText = k.toFixed(1);
@@ -386,40 +351,67 @@
                 if (k > 80) { badge.innerText = "⚠️ 超買"; badge.className="text-xs bg-red-900 text-red-300 px-2 py-1 rounded"; }
                 else if (k < 20) { badge.innerText = "💎 超賣"; badge.className="text-xs bg-green-900 text-green-300 px-2 py-1 rounded"; }
                 else { badge.innerText = "徘徊區"; badge.className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded"; }
+            } else {
+                // 資料不足時的顯示
+                document.getElementById('kVal').innerText = "--";
+                document.getElementById('dVal').innerText = "--";
+                document.getElementById('jVal').innerText = "--";
+                badge.innerText = "資料不足";
+                badge.className = "text-xs bg-slate-700 text-slate-500 px-2 py-1 rounded";
             }
+            
             if (diff < 2) { icon.classList.remove('hidden'); } else { icon.classList.add('hidden'); }
         }
 
-        // API
         async function fetchFugleQuote(id) {
             const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
             return await res.json();
         }
+        
+        // 修復 FinMind API 參數
         async function fetchFinMindHistory(id) {
-            const startDate = new Date(Date.now() - 40 * 86400000).toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0]; // 抓更久一點的資料保險
             const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${startDate}&token=${FINMIND_TOKEN}`);
             const json = await res.json();
-            return json.data || [];
+            if (json.msg === 'success' && json.data) {
+                return json.data;
+            } else {
+                throw new Error("FinMind 回傳空值");
+            }
         }
 
-        // 持倉渲染 (含 KDJ 提示)
-        async function renderPortfolio() {
+        // 持倉相關與 Modal 相關
+        function openAddModal() {
+            if (!currentStock) return alert("請先分析一檔股票");
+            document.getElementById('modalStockName').value = `${currentStock.name} (${currentStock.id})`;
+            document.getElementById('modalCost').value = currentStock.price;
+            document.getElementById('addPortfolioModal').classList.remove('hidden');
+        }
+        function closeModal() { document.getElementById('addPortfolioModal').classList.add('hidden'); }
+        function confirmAddPortfolio() {
+            const qty = parseFloat(document.getElementById('modalQty').value);
+            const cost = parseFloat(document.getElementById('modalCost').value);
+            if (!qty || qty <= 0) return alert("張數錯誤");
+            if (!cost || cost <= 0) return alert("價格錯誤");
+            portfolio.push({ 
+                id: currentStock.id, name: currentStock.name, cost: cost, qty: qty, curr: currentStock.price,
+                kdjState: currentStock.kdj ? (currentStock.kdj.k > 80 ? 'high' : (currentStock.kdj.k < 20 ? 'low' : 'mid')) : 'none'
+            });
+            saveAndRender();
+            closeModal();
+        }
+        function renderPortfolio() {
             const tbody = document.getElementById('portfolioBody');
             let totalPnL = 0;
             tbody.innerHTML = '';
-            
             for (let i = 0; i < portfolio.length; i++) {
                 const p = portfolio[i];
                 const profit = (p.curr - p.cost) * p.qty * 1000;
                 totalPnL += profit;
                 const color = profit >= 0 ? 'text-profit' : 'text-loss';
-                
-                // 重新計算 KDJ 狀態 (如果沒有緩存，需要重新抓，這裡簡化使用加入時的狀態或預設)
-                // 為了即時性，每次 render 應該重抓一次歷史數據太慢，這裡先用簡易判斷或上次緩存
                 let kdjSignal = '<span class="text-slate-500">-</span>';
                 if (p.kdjState === 'high') kdjSignal = '<span class="kdj-tag kdj-overbought">賣出訊號</span>';
                 else if (p.kdjState === 'low') kdjSignal = '<span class="kdj-tag kdj-oversold">加碼訊號</span>';
-                
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-800/50 border-b border-slate-700/50">
                         <td class="px-4 py-3 font-bold text-white">${p.name}</td>
@@ -434,27 +426,75 @@
             document.getElementById('totalProfit').innerText = Math.round(totalPnL).toLocaleString();
             document.getElementById('totalProfit').className = `text-2xl font-bold ${totalPnL >= 0 ? 'text-profit' : 'text-loss'}`;
         }
-
         function removeP(i) { portfolio.splice(i, 1); saveAndRender(); }
         function saveAndRender() { localStorage.setItem('pro_portfolio_v3', JSON.stringify(portfolio)); renderPortfolio(); }
-        
         async function updatePortfolioPrices() {
-            for(let p of portfolio) { 
-                try { 
-                    const q = await fetchFugleQuote(p.id); 
-                    if(q.lastPrice) p.curr = q.lastPrice; 
-                    
-                    // 背景更新 KDJ 狀態
-                    const h = await fetchFinMindHistory(p.id);
-                    const kdj = calculateKDJ(h);
-                    if(kdj) {
-                        if(kdj.k > 80) p.kdjState = 'high';
-                        else if(kdj.k < 20) p.kdjState = 'low';
-                        else p.kdjState = 'mid';
-                    }
-                } catch(e){} 
-            }
+            for(let p of portfolio) { try { const q = await fetchFugleQuote(p.id); if(q.lastPrice) p.curr = q.lastPrice; const h = await fetchFinMindHistory(p.id); const kdj = calculateKDJ(h); if(kdj) { if(kdj.k > 80) p.kdjState = 'high'; else if(kdj.k < 20) p.kdjState = 'low'; else p.kdjState = 'mid'; } } catch(e){} }
             saveAndRender();
+        }
+        // 觀察名單與大戶掃描功能保留不變...
+        async function refreshWatchlist() {
+            const tbody = document.getElementById('watchlistBody');
+            tbody.innerHTML = '';
+            for (const [industryName, stocks] of Object.entries(INDUSTRY_LIST)) {
+                tbody.innerHTML += `<tr><td colspan="5" class="industry-header sticky top-8 z-0">📂 ${industryName}</td></tr>`;
+                for (const id of stocks) {
+                    try {
+                        const quote = await fetchFugleQuote(id);
+                        const history = await fetchFinMindHistory(id);
+                        const kdj = calculateKDJ(history);
+                        let kdjBadge = '<span class="text-slate-500">-</span>';
+                        if (kdj) {
+                            if (kdj.k > 80) kdjBadge = '<span class="kdj-tag kdj-overbought">超買</span>';
+                            else if (kdj.k < 20) kdjBadge = '<span class="kdj-tag kdj-oversold">超賣</span>';
+                            else kdjBadge = '<span class="kdj-tag kdj-neutral">徘徊</span>';
+                        }
+                        let buyPoint = quote.lastPrice * 0.9;
+                        if(history && history.length >= 5) buyPoint = Math.min(...history.slice(-5).map(d => d.min));
+                        const diff = ((quote.lastPrice - buyPoint) / buyPoint * 100);
+                        let signalIcon = '';
+                        if (diff < 2 && kdj && kdj.k < 40) signalIcon = '<span class="buy-icon text-yellow-400">🎯</span>';
+                        tbody.innerHTML += `
+                            <tr class="hover:bg-slate-700 cursor-pointer border-b border-slate-700/50" onclick="analyzeStock('${id}')">
+                                <td class="px-2 py-2 font-bold text-white">${quote.name} <span class="text-[10px] text-slate-500">${id}</span></td>
+                                <td class="px-2 py-2 text-right text-slate-300">${quote.lastPrice}</td>
+                                <td class="px-2 py-2 text-center">${kdjBadge}</td>
+                                <td class="px-2 py-2 text-right font-mono buy-point text-xs">${buyPoint.toFixed(1)}</td>
+                                <td class="px-2 py-2 text-center">${signalIcon}</td>
+                            </tr>`;
+                    } catch(e){}
+                }
+            }
+        }
+        async function scanBigOrders() {
+            const tbody = document.getElementById('bigOrderBody');
+            if(tbody.innerHTML.includes('等待')) tbody.innerHTML = '';
+            const randomTargets = SCAN_POOL.sort(() => 0.5 - Math.random()).slice(0, 3);
+            for (const id of randomTargets) {
+                try {
+                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
+                    const json = await res.json();
+                    const trade = json.lastTrade;
+                    if (trade && trade.unit >= 100) { 
+                        const buyPower = (json.total.tradeVolumeAtAsk / json.total.tradeVolume) * 100;
+                        let mainForceTag = '<span class="text-xs text-slate-500">中性</span>';
+                        if (buyPower > 55) mainForceTag = `<span class="main-force-tag">🔥 主力積極買進 (${buyPower.toFixed(0)}%)</span>`;
+                        const time = new Date(json.lastUpdated / 1000).toLocaleTimeString();
+                        showAlert(`${json.name} (${id})`, trade.price, trade.unit, time);
+                        const rowHTML = `
+                            <tr class="big-order-row border-b border-slate-700 cursor-pointer hover:bg-slate-700" onclick="analyzeStock('${id}')">
+                                <td class="px-4 py-3 text-slate-400 font-mono text-xs">${time}</td>
+                                <td class="px-4 py-3 font-bold text-white">${json.name}</td>
+                                <td class="px-4 py-3 text-right text-yellow-400 font-bold text-lg">⚡ ${trade.unit}</td>
+                                <td class="px-4 py-3 text-right text-white">${trade.price}</td>
+                                <td class="px-4 py-3">${mainForceTag}</td>
+                                <td class="px-4 py-3 text-center"><button class="text-xs bg-cyan-900 text-cyan-300 px-2 py-1 rounded">分析</button></td>
+                            </tr>`;
+                        tbody.insertAdjacentHTML('afterbegin', rowHTML);
+                        if(tbody.rows.length > 50) tbody.deleteRow(-1);
+                    }
+                } catch(e) {}
+            }
         }
     </script>
 </body>
