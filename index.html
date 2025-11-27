@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v3.5 (KDJ 戰略版)</title>
+    <title>台股雙引擎儀表板 v3.6 (終極戰略版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -17,10 +17,19 @@
         .industry-header { background: #334155; color: #94a3b8; font-size: 0.75rem; font-weight: bold; padding: 4px 12px; }
         
         /* KDJ 狀態標籤 */
-        .kdj-tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
-        .kdj-overbought { background-color: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid #ef4444; } /* 紅色超買 */
-        .kdj-oversold { background-color: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; } /* 綠色超賣 */
-        .kdj-neutral { background-color: rgba(148, 163, 184, 0.2); color: #cbd5e1; } /* 灰色徘徊 */
+        .kdj-val { font-family: monospace; font-size: 0.8rem; }
+        .kdj-overbought { color: #fca5a5; } /* 紅色超買 */
+        .kdj-oversold { color: #86efac; font-weight: bold; } /* 綠色超賣 */
+        
+        /* 外資共鳴標籤 */
+        .foreign-tag { background: linear-gradient(90deg, #db2777, #9333ea); color: white; font-size: 0.65rem; padding: 1px 4px; border-radius: 2px; margin-left: 4px; }
+
+        /* 推薦買入圖示 */
+        .buy-icon { font-size: 1rem; animation: bounce 1s infinite; display: inline-block; }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-3px); }
+        }
 
         /* 499 大單特效 */
         .big-order-row { animation: flash 2s infinite; }
@@ -40,7 +49,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v3.5 KDJ 戰略版 | Fugle + FinMind</p>
+            <p class="text-slate-400 text-sm mt-1">v3.6 終極戰略版 | KDJ獨立顯視 + 外資共鳴</p>
         </div>
         <div class="text-right">
             <div id="updateTime" class="text-xs text-slate-500">更新中...</div>
@@ -62,7 +71,7 @@
                     <div class="flex justify-between items-end border-b border-slate-700 pb-3">
                         <div>
                             <h3 id="stockNameDisplay" class="text-2xl font-bold text-white">--</h3>
-                            <span id="kdjStatusBadge" class="kdj-tag kdj-neutral">KDJ 計算中</span>
+                            <span id="kdjStatusBadge" class="text-xs bg-slate-700 px-2 py-1 rounded text-slate-300">--</span>
                         </div>
                         <div class="text-right">
                             <div id="currentPrice" class="text-4xl font-bold text-white">--</div>
@@ -72,29 +81,21 @@
 
                     <!-- KDJ 指標卡片 -->
                     <div class="grid grid-cols-3 gap-2 text-center bg-slate-800 p-2 rounded border border-slate-700">
-                        <div>
-                            <div class="text-xs text-slate-500">K值</div>
-                            <div id="kVal" class="font-mono font-bold text-white">--</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-slate-500">D值</div>
-                            <div id="dVal" class="font-mono font-bold text-white">--</div>
-                        </div>
-                        <div>
-                            <div class="text-xs text-slate-500">J值</div>
-                            <div id="jVal" class="font-mono font-bold text-white">--</div>
-                        </div>
+                        <div><div class="text-xs text-slate-500">K值</div><div id="kVal" class="font-mono font-bold text-white">--</div></div>
+                        <div><div class="text-xs text-slate-500">D值</div><div id="dVal" class="font-mono font-bold text-white">--</div></div>
+                        <div><div class="text-xs text-slate-500">J值</div><div id="jVal" class="font-mono font-bold text-white">--</div></div>
                     </div>
                     <div id="kdjAdvice" class="text-xs text-center text-slate-400 italic">等待分析...</div>
 
-                    <div class="bg-slate-800/80 p-3 rounded-lg border border-yellow-600/30 mt-2">
-                        <div class="flex justify-between items-center text-sm mb-1">
-                            <span class="text-slate-400">🎯 系統建議買點</span>
-                            <span class="text-xs text-yellow-500 bg-yellow-900/20 px-2 rounded">支撐算法</span>
+                    <!-- 買點建議 -->
+                    <div class="bg-slate-800/80 p-3 rounded-lg border border-yellow-600/30 mt-2 flex justify-between items-center">
+                        <div>
+                            <div class="text-sm text-slate-400">🎯 建議買點</div>
+                            <div id="recommendBuy" class="text-2xl font-mono text-yellow-400 font-bold">--</div>
                         </div>
-                        <div class="flex justify-between items-end">
-                            <span id="recommendBuy" class="text-2xl font-mono text-yellow-400 font-bold">--</span>
-                            <span id="diffText" class="text-xs text-slate-400">距現價 --%</span>
+                        <div class="text-right">
+                            <div id="diffText" class="text-xs text-slate-400">距現價 --%</div>
+                            <div id="buySignalIcon" class="hidden text-2xl">🎯</div>
                         </div>
                     </div>
                     
@@ -104,7 +105,7 @@
                 </div>
             </div>
 
-            <!-- 📋 產業觀察名單 (含 KDJ 狀態) -->
+            <!-- 📋 產業 KDJ 掃描 (獨立欄位) -->
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold border-l-4 border-yellow-400 pl-3">📋 產業 KDJ 掃描</h2>
@@ -116,8 +117,9 @@
                             <tr>
                                 <th class="px-2 py-2">股名</th>
                                 <th class="px-2 py-2 text-right">現價</th>
-                                <th class="px-2 py-2 text-center">KDJ狀態</th>
-                                <th class="px-2 py-2 text-right">買點</th>
+                                <th class="px-2 py-2 text-center">K/D值</th> <!-- 獨立欄位 -->
+                                <th class="px-2 py-2 text-right">空間</th>
+                                <th class="px-2 py-2 text-center">訊號</th> <!-- 推薦圖示 -->
                             </tr>
                         </thead>
                         <tbody id="watchlistBody" class="divide-y divide-slate-700"></tbody>
@@ -129,7 +131,7 @@
         <!-- 右側：499雷達 & 持倉 -->
         <div class="lg:col-span-2 space-y-6">
             
-            <!-- 🔥 499 大戶雷達 -->
+            <!-- 🔥 499 大戶雷達 (含外資共鳴) -->
             <div class="card p-5 relative overflow-hidden">
                 <div class="absolute top-0 right-0 w-20 h-20 bg-red-500/10 rounded-full blur-xl -mr-10 -mt-10 pointer-events-none"></div>
                 <div class="flex justify-between items-center mb-4">
@@ -146,16 +148,18 @@
                             <tr>
                                 <th class="px-4 py-3">時間</th>
                                 <th class="px-4 py-3">股票</th>
-                                <th class="px-4 py-3 text-right">大單 (張)</th>
+                                <th class="px-4 py-3 text-right">大單(張)</th>
                                 <th class="px-4 py-3 text-right">成交價</th>
-                                <th class="px-4 py-3 text-right">金額 (萬)</th>
+                                <th class="px-4 py-3">外資動向</th> <!-- 新增欄位 -->
+                                <th class="px-4 py-3 text-center">操作</th>
                             </tr>
                         </thead>
                         <tbody id="bigOrderBody" class="divide-y divide-slate-700">
-                            <tr><td colspan="5" class="text-center py-12 text-slate-500">等待 499 大單訊號...</td></tr>
+                            <tr><td colspan="6" class="text-center py-12 text-slate-500">等待 499 大單訊號...</td></tr>
                         </tbody>
                     </table>
                 </div>
+                <p class="text-xs text-slate-500 mt-2 text-right">* 外資動向：同步檢查該股近 3 日法人是否連買</p>
             </div>
 
             <!-- 持倉管理 -->
@@ -190,12 +194,11 @@
 
         // 🏭 產業分類清單
         const INDUSTRY_LIST = {
-            '半導體': ['2330', '2454', '2303', '3034', '3711'],
-            'AI伺服器': ['2382', '3231', '6669', '2356', '2301'],
-            '電腦周邊': ['2317', '2357', '2324', '3017'],
-            '航運': ['2603', '2609', '2615', '2618'],
-            '金融': ['2881', '2882', '2891', '2886', '2884'],
-            '重電綠能': ['1513', '1519', '1514', '1504']
+            '半導體': ['2330', '2454', '2303', '3034'],
+            'AI伺服器': ['2382', '3231', '6669', '2356'],
+            '電腦周邊': ['2317', '2357', '2324'],
+            '航運': ['2603', '2609', '2615'],
+            '金融': ['2881', '2882', '2891']
         };
         const SCAN_POOL = Object.values(INDUSTRY_LIST).flat();
         
@@ -209,94 +212,121 @@
             setInterval(scanBigOrders, 15000); 
         };
 
-        // 🧠 KDJ 計算核心 (RSV -> K -> D -> J)
+        // 🧠 KDJ 計算
         function calculateKDJ(historyData) {
-            if (historyData.length < 9) return null; // 資料不足
-
+            if (historyData.length < 9) return null;
             let k = 50, d = 50;
-            const result = [];
-
-            // 簡單計算最近一天的 KDJ (實務上需遞迴計算，這裡簡化為計算最後一天)
-            // 正確做法應從第9天開始一路算到今天，為了效能我們取最近 9 天計算一次 RSV
-            // 這裡為了準確度，我們用遞迴方式算最後 5 天
-            
-            // 先初始化 K, D
-            let k_prev = 50, d_prev = 50;
-            
-            // 我們只需要算最後一天的值，但為了平滑，建議從倒數第 N 天開始跑
             const startIdx = Math.max(0, historyData.length - 20); 
-
             for (let i = startIdx; i < historyData.length; i++) {
-                // 找最近 9 天 (包含今天) 的最高 High 和最低 Low
-                const lookback = Math.max(0, i - 8);
-                const slice = historyData.slice(lookback, i + 1);
-                
+                const slice = historyData.slice(Math.max(0, i - 8), i + 1);
                 const close = historyData[i].close;
                 const high9 = Math.max(...slice.map(d => d.max));
                 const low9 = Math.min(...slice.map(d => d.min));
-                
                 let rsv = 50;
-                if (high9 !== low9) {
-                    rsv = ((close - low9) / (high9 - low9)) * 100;
-                }
-                
-                // K = 2/3 * K_prev + 1/3 * RSV
-                const k_curr = (2/3) * k_prev + (1/3) * rsv;
-                // D = 2/3 * D_prev + 1/3 * K
-                const d_curr = (2/3) * d_prev + (1/3) * k_curr;
-                // J = 3K - 2D
-                const j_curr = 3 * k_curr - 2 * d_curr;
-                
-                k_prev = k_curr;
-                d_prev = d_curr;
-                
-                if (i === historyData.length - 1) {
-                    return { k: k_curr, d: d_curr, j: j_curr };
-                }
+                if (high9 !== low9) rsv = ((close - low9) / (high9 - low9)) * 100;
+                k = (2/3) * k + (1/3) * rsv;
+                d = (2/3) * d + (1/3) * k;
             }
-            return { k: 50, d: 50, j: 50 };
+            return { k: k, d: d, j: 3*k - 2*d };
         }
 
-        // 🔄 產業觀察名單刷新 (含 KDJ 狀態)
+        // 🔄 產業觀察名單 (KDJ 獨立欄位 + 推薦圖示)
         async function refreshWatchlist() {
             const tbody = document.getElementById('watchlistBody');
             tbody.innerHTML = '';
             
             for (const [industryName, stocks] of Object.entries(INDUSTRY_LIST)) {
-                const headerRow = `<tr><td colspan="4" class="industry-header sticky top-8 z-0">📂 ${industryName}</td></tr>`;
-                tbody.innerHTML += headerRow;
-
+                tbody.innerHTML += `<tr><td colspan="5" class="industry-header sticky top-8 z-0">📂 ${industryName}</td></tr>`;
+                
                 for (const id of stocks) {
                     try {
                         const quote = await fetchFugleQuote(id);
                         const history = await fetchFinMindHistory(id);
                         const kdj = calculateKDJ(history);
                         
-                        let kdjBadge = '<span class="text-slate-500 text-xs">-</span>';
+                        let kdjText = '-';
+                        let kdjClass = '';
                         if (kdj) {
-                            const k = kdj.k;
-                            if (k > 80) kdjBadge = '<span class="kdj-tag kdj-overbought">超買(>80)</span>';
-                            else if (k < 20) kdjBadge = '<span class="kdj-tag kdj-oversold">超賣(<20)</span>';
-                            else kdjBadge = '<span class="kdj-tag kdj-neutral">徘徊區</span>';
+                            kdjText = `${kdj.k.toFixed(0)} / ${kdj.d.toFixed(0)}`;
+                            if (kdj.k > 80) kdjClass = 'kdj-overbought';
+                            else if (kdj.k < 20) kdjClass = 'kdj-oversold';
                         }
 
                         let buyPoint = quote.lastPrice * 0.9;
                         if(history.length >= 5) buyPoint = Math.min(...history.slice(-5).map(d => d.min));
                         
+                        const diff = ((quote.lastPrice - buyPoint) / buyPoint * 100);
+                        
+                        // 🎯 推薦圖示邏輯
+                        let signalIcon = '';
+                        if (diff < 2 && kdj && kdj.k < 30) { // 接近買點且 K 值不高
+                            signalIcon = '<span class="buy-icon text-yellow-400">🎯</span>';
+                        }
+
                         tbody.innerHTML += `
                             <tr class="hover:bg-slate-700 cursor-pointer border-b border-slate-700/50" onclick="analyzeStock('${id}')">
                                 <td class="px-2 py-2 font-bold text-white">${quote.name} <span class="text-[10px] text-slate-500">${id}</span></td>
                                 <td class="px-2 py-2 text-right text-slate-300">${quote.lastPrice}</td>
-                                <td class="px-2 py-2 text-center">${kdjBadge}</td>
-                                <td class="px-2 py-2 text-right font-mono buy-point text-xs">${buyPoint.toFixed(1)}</td>
-                            </tr>
-                        `;
+                                <td class="px-2 py-2 text-center kdj-val ${kdjClass}">${kdjText}</td>
+                                <td class="px-2 py-2 text-right text-xs text-slate-400">${diff.toFixed(1)}%</td>
+                                <td class="px-2 py-2 text-center">${signalIcon}</td>
+                            </tr>`;
                     } catch(e){}
                 }
             }
         }
 
-        // 🛠️ 核心分析 (加入 KDJ 判斷)
+        // 🔥 499 大單 + 外資共鳴
+        async function scanBigOrders() {
+            const tbody = document.getElementById('bigOrderBody');
+            if(tbody.innerHTML.includes('等待')) tbody.innerHTML = '';
+            const randomTargets = SCAN_POOL.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+            for (const id of randomTargets) {
+                try {
+                    // 1. 抓即時成交
+                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, {
+                        headers: { "X-API-KEY": FUGLE_KEY }
+                    });
+                    const json = await res.json();
+                    const trade = json.lastTrade;
+
+                    if (trade && trade.unit >= 100) { // 測試用 100，實戰請改 499
+                        // 2. 同步查外資動向 (FinMind)
+                        const startDate = new Date(Date.now() - 5 * 86400000).toISOString().split('T')[0];
+                        const chipRes = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInstitutionalInvestorsBuySell&data_id=${id}&start_date=${startDate}&token=${FINMIND_TOKEN}`);
+                        const chipJson = await chipRes.json();
+                        const chipData = chipJson.data || [];
+                        
+                        let foreignTag = '<span class="text-xs text-slate-500">無訊號</span>';
+                        if(chipData.length >= 3) {
+                            const last3 = chipData.slice(-3);
+                            const isBuy = last3.every(d => d.Foreign_Investor_buy_sell > 0);
+                            if(isBuy) foreignTag = '<span class="foreign-tag">🔥 外資連買</span>';
+                        }
+
+                        const time = new Date(json.lastUpdated / 1000).toLocaleTimeString();
+                        const amount = Math.round((trade.price * trade.unit * 1000) / 10000);
+                        
+                        const rowHTML = `
+                            <tr class="big-order-row border-b border-slate-700 cursor-pointer hover:bg-slate-700" onclick="analyzeStock('${id}')">
+                                <td class="px-4 py-3 text-slate-400 font-mono text-xs">${time}</td>
+                                <td class="px-4 py-3 font-bold text-white">${json.name}</td>
+                                <td class="px-4 py-3 text-right text-yellow-400 font-bold text-lg">⚡ ${trade.unit}</td>
+                                <td class="px-4 py-3 text-right text-white">${trade.price}</td>
+                                <td class="px-4 py-3">${foreignTag}</td> <!-- 外資欄位 -->
+                                <td class="px-4 py-3 text-center">
+                                    <button class="text-xs bg-cyan-900 text-cyan-300 px-2 py-1 rounded">分析</button>
+                                </td>
+                            </tr>`;
+                        tbody.insertAdjacentHTML('afterbegin', rowHTML);
+                        if(tbody.rows.length > 50) tbody.deleteRow(-1);
+                    }
+                } catch(e) {}
+            }
+        }
+
+        // 🛠️ 核心分析 (UI 更新推薦圖示)
         async function analyzeStock(inputId = null) {
             const stockId = inputId || document.getElementById('stockInput').value.trim();
             if (!stockId) return alert("請輸入代碼");
@@ -305,12 +335,10 @@
             try {
                 const [fugleData, historyData] = await Promise.all([fetchFugleQuote(stockId), fetchFinMindHistory(stockId)]);
                 const kdj = calculateKDJ(historyData);
-                
                 let buyPoint = 0, score = 50;
                 if (historyData.length >= 5) {
                     buyPoint = Math.min(...historyData.slice(-5).map(d => d.min));
                 } else { buyPoint = fugleData.lastPrice * 0.95; }
-
                 currentStock = { id: stockId, name: fugleData.name, price: fugleData.lastPrice, buyPoint: buyPoint, score: score, kdj: kdj };
                 updateAnalysisUI(currentStock, fugleData);
             } catch (e) { console.error(e); alert("分析失敗"); } 
@@ -330,9 +358,9 @@
             document.getElementById('recommendBuy').innerText = stock.buyPoint.toFixed(1);
             document.getElementById('diffText').innerText = `距現價 ${diff}%`;
 
-            // KDJ UI
+            // KDJ & 推薦圖示
             const badge = document.getElementById('kdjStatusBadge');
-            const advice = document.getElementById('kdjAdvice');
+            const icon = document.getElementById('buySignalIcon');
             
             if (stock.kdj) {
                 const { k, d, j } = stock.kdj;
@@ -340,58 +368,25 @@
                 document.getElementById('dVal').innerText = d.toFixed(1);
                 document.getElementById('jVal').innerText = j.toFixed(1);
                 
-                if (k > 80) {
-                    badge.className = "kdj-tag kdj-overbought";
-                    badge.innerText = "⚠️ 超買 (>80)";
-                    advice.innerText = "行情過熱，短線恐回檔，勿追高！";
-                } else if (k < 20) {
-                    badge.className = "kdj-tag kdj-oversold";
-                    badge.innerText = "💎 超賣 (<20)";
-                    advice.innerText = "行情超跌，短線反彈機會大，可留意！";
-                } else {
-                    badge.className = "kdj-tag kdj-neutral";
-                    badge.innerText = "徘徊區 (20-80)";
-                    advice.innerText = "趨勢合理，可於區間內低買高賣。";
-                }
+                if (k > 80) { badge.innerText = "⚠️ 超買 (>80)"; badge.className="text-xs bg-red-900 text-red-300 px-2 py-1 rounded"; }
+                else if (k < 20) { badge.innerText = "💎 超賣 (<20)"; badge.className="text-xs bg-green-900 text-green-300 px-2 py-1 rounded"; }
+                else { badge.innerText = "徘徊區"; badge.className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded"; }
+            }
+            
+            if (diff < 2) {
+                icon.classList.remove('hidden');
             } else {
-                advice.innerText = "歷史資料不足，無法計算 KDJ";
+                icon.classList.add('hidden');
             }
         }
 
-        // 499, 掃描, API 封裝, 持倉等功能維持 v3.4 不變
-        async function scanBigOrders() {
-            const tbody = document.getElementById('bigOrderBody');
-            if(tbody.innerHTML.includes('等待')) tbody.innerHTML = '';
-            const randomTargets = SCAN_POOL.sort(() => 0.5 - Math.random()).slice(0, 3);
-            for (const id of randomTargets) {
-                try {
-                    const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                    const json = await res.json();
-                    const trade = json.lastTrade;
-                    if (trade && trade.unit >= 100) { // 測試用100
-                        const time = new Date(json.lastUpdated / 1000).toLocaleTimeString();
-                        const amount = Math.round((trade.price * trade.unit * 1000) / 10000);
-                        const rowHTML = `
-                            <tr class="big-order-row border-b border-slate-700 cursor-pointer hover:bg-slate-700" onclick="analyzeStock('${id}')">
-                                <td class="px-4 py-3 text-slate-400 font-mono text-xs">${time}</td>
-                                <td class="px-4 py-3 font-bold text-white">${json.name}</td>
-                                <td class="px-4 py-3 text-right text-yellow-400 font-bold text-lg">⚡ ${trade.unit}</td>
-                                <td class="px-4 py-3 text-right text-white">${trade.price}</td>
-                                <td class="px-4 py-3 text-right text-slate-400">${amount.toLocaleString()}</td>
-                            </tr>`;
-                        tbody.insertAdjacentHTML('afterbegin', rowHTML);
-                        if(tbody.rows.length > 50) tbody.deleteRow(-1);
-                    }
-                } catch(e) {}
-            }
-        }
-
+        // API 封裝 & 持倉 (維持不變)
         async function fetchFugleQuote(id) {
             const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
             return await res.json();
         }
         async function fetchFinMindHistory(id) {
-            const startDate = new Date(Date.now() - 40 * 86400000).toISOString().split('T')[0]; // 抓40天以算KDJ
+            const startDate = new Date(Date.now() - 40 * 86400000).toISOString().split('T')[0];
             const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${startDate}&token=${FINMIND_TOKEN}`);
             const json = await res.json();
             return json.data || [];
