@@ -228,34 +228,38 @@
 
         // 🔥 從台灣證交所取得外資籌碼
         async function fetchForeignInvestorsFromTWSE() {
-            try {
-                const d = new Date();
-                const dateStr = d.getFullYear() + 
-                               String(d.getMonth() + 1).padStart(2, '0') + 
-                               String(d.getDate()).padStart(2, '0');
-                
-                console.log("🔄 正在從台灣證交所取得外資籌碼...");
-                const url = `https://www.twse.com.tw/exchangeReport/MI_QFIIS?response=json&date=${dateStr}`;
-                const res = await fetch(url);
-                const json = await res.json();
-                
-                if (json.stat === 'OK' && json.data) {
-                    json.data.forEach(row => {
-                        const stockId = row[0].trim();
-                        const netBuySell = parseInt(row[4]) || 0;
-                        foreignDataMap[stockId] = netBuySell;
-                    });
-                    console.log("✅ 取得 " + Object.keys(foreignDataMap).length + " 檔外資籌碼");
-                    return true;
-                } else {
-                    console.log("⚠️ 台灣證交所未有今日數據");
-                    return false;
-                }
-            } catch(e) {
-                console.log("⚠️ 台灣證交所外資數據取得失敗: " + e.message);
-                return false;
-            }
+    try {
+        const d = new Date();
+        const dateStr = d.getFullYear() + 
+                       String(d.getMonth() + 1).padStart(2, '0') + 
+                       String(d.getDate()).padStart(2, '0');
+        
+        console.log("🔄 正在從台灣證交所取得外資籌碼...");
+        
+        // 🔥 使用 AllOrigins 代理繞過 CORS 限制
+        const twseUrl = `https://www.twse.com.tw/exchangeReport/MI_QFIIS?response=json&date=${dateStr}`;
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(twseUrl)}`;
+        
+        const res = await fetch(proxyUrl);
+        const json = await res.json();
+        
+        if (json.stat === 'OK' && json.data) {
+            json.data.forEach(row => {
+                const stockId = row[0].trim();
+                const netBuySell = parseInt(row[4]) || 0;
+                foreignDataMap[stockId] = netBuySell;
+            });
+            console.log("✅ 取得 " + Object.keys(foreignDataMap).length + " 檔外資籌碼");
+            return true;
+        } else {
+            console.log("⚠️ 台灣證交所未有數據或代理失敗");
+            return false;
         }
+    } catch(e) {
+        console.log("⚠️ 外資數據取得失敗: " + e.message);
+        return false;
+    }
+}
 
         async function scanMarket() {
             document.getElementById('statusIndicator').innerText = '🔄 掃描中...';
