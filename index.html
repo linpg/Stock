@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v5.15 (完整版)</title>
+    <title>台股雙引擎儀表板 v6.0 (完整功能版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
         .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; }
@@ -18,9 +19,6 @@
         .category-btn.active { background: linear-gradient(90deg, #7c3aed, #db2777); color: white; }
         .category-btn.inactive { background-color: #334155; color: #94a3b8; }
         .category-btn:hover { opacity: 0.8; }
-
-        .status-hot { background: linear-gradient(90deg, #be185d, #db2777); color: white; }
-        .status-foreign { background: linear-gradient(90deg, #7c3aed, #a855f7); color: white; font-weight: bold; }
 
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
@@ -43,9 +41,30 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v5.15 完整版 | 外資買超前 20 檔排名 + 100% 真實數據</p>
+            <p class="text-slate-400 text-sm mt-1">v6.0 完整功能版 | Fugle 全數據整合</p>
         </div>
         <div id="statusIndicator" class="text-xs text-yellow-400">🔄 初始化中...</div>
+    </div>
+
+    <!-- 市場概況 -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="card p-4">
+            <div class="text-xs text-slate-400">加權指數</div>
+            <div id="indexValue" class="text-2xl font-bold text-cyan-400">--</div>
+            <div id="indexChange" class="text-sm text-slate-500">--</div>
+        </div>
+        <div class="card p-4">
+            <div class="text-xs text-slate-400">漲停檔數</div>
+            <div id="limitUpCount" class="text-2xl font-bold text-profit">--</div>
+        </div>
+        <div class="card p-4">
+            <div class="text-xs text-slate-400">跌停檔數</div>
+            <div id="limitDownCount" class="text-2xl font-bold text-loss">--</div>
+        </div>
+        <div class="card p-4">
+            <div class="text-xs text-slate-400">成交金額</div>
+            <div id="marketValue" class="text-2xl font-bold text-purple-400">--</div>
+        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -70,6 +89,14 @@
                     </div>
                     <div><div class="text-sm text-slate-400">建議買點</div><div id="recommendBuy" class="text-xl font-bold text-yellow-400">--</div></div>
                     <button onclick="openAddModal()" class="w-full bg-cyan-700 text-white py-3 rounded-lg font-bold">+ 加入持倉</button>
+                </div>
+            </div>
+
+            <!-- 買賣五檔 -->
+            <div class="card p-5" id="orderbookCard" style="display:none;">
+                <h2 class="text-xl font-bold mb-4 border-l-4 border-blue-400 pl-3">📊 買賣五檔</h2>
+                <div id="orderbookContent" class="text-xs space-y-1">
+                    <div class="text-center text-slate-500">加載中...</div>
                 </div>
             </div>
 
@@ -118,6 +145,29 @@
 
         <!-- 右側 -->
         <div class="lg:col-span-2 space-y-6">
+            <!-- 盤中成交明細 -->
+            <div class="card p-5">
+                <h2 class="text-xl font-bold border-l-4 border-green-500 pl-3 mb-4">🎯 盤中成交明細</h2>
+                <div class="overflow-y-auto max-h-48 bg-black/20 rounded-lg border border-slate-700/50">
+                    <table class="w-full text-xs text-left">
+                        <thead class="bg-slate-800 sticky top-0">
+                            <tr><th class="px-3 py-2">時間</th><th class="px-3 py-2 text-right">成交價</th><th class="px-3 py-2 text-right">成交量</th></tr>
+                        </thead>
+                        <tbody id="tradesBody" class="divide-y divide-slate-700">
+                            <tr><td colspan="3" class="text-center py-6 text-slate-500">請先分析個股</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 分時 K 線 -->
+            <div class="card p-5">
+                <h2 class="text-xl font-bold border-l-4 border-orange-500 pl-3 mb-4">📈 分時 K 線（5分鐘）</h2>
+                <div style="height: 300px;">
+                    anvas id="candleChart"></canvas>
+                </div>
+            </div>
+
             <!-- 外資買超排名 -->
             <div class="card p-5">
                 <h2 class="text-xl font-bold border-l-4 border-purple-500 pl-3 mb-4">🎯 外資買超前 20 檔</h2>
@@ -176,13 +226,45 @@
         let currentMode = 'foreign';
         let currentCategory = 'all';
         let currentStock = null;
+        let candleChart = null;
 
         window.onload = () => {
             renderPortfolio();
             scanMarket();
+            updateMarketStats();
             setInterval(checkForeignBuys, 3000);
             setInterval(updatePortfolioPrices, 30000);
+            setInterval(updateMarketStats, 60000);
         };
+
+        // 🔥 更新市場統計
+        async function updateMarketStats() {
+            try {
+                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/stats`, { headers: { "X-API-KEY": FUGLE_KEY } });
+                const json = await res.json();
+                
+                if (json.info) {
+                    document.getElementById('limitUpCount').innerText = json.info.limitUpCount || 0;
+                    document.getElementById('limitDownCount').innerText = json.info.limitDownCount || 0;
+                    document.getElementById('marketValue').innerText = (json.info.tradeValue / 1000000000).toFixed(1) + '十億';
+                }
+
+                // 加權指數
+                const indexRes = await fetch(`https://api.fugle.tw/marketdata/v1.0/indices/quote/TAIEX`, { headers: { "X-API-KEY": FUGLE_KEY } });
+                const indexJson = await indexRes.json();
+                if (indexJson.lastTrade) {
+                    const val = indexJson.lastTrade.price;
+                    const change = indexJson.lastTrade.price - indexJson.openPrice;
+                    const color = change >= 0 ? 'text-profit' : 'text-loss';
+                    document.getElementById('indexValue').innerText = val.toFixed(2);
+                    document.getElementById('indexValue').className = `text-2xl font-bold ${color}`;
+                    document.getElementById('indexChange').innerText = (change > 0 ? '+' : '') + change.toFixed(2);
+                    document.getElementById('indexChange').className = `text-sm ${color}`;
+                }
+            } catch(e) {
+                console.log("市場統計更新失敗: " + e.message);
+            }
+        }
 
         function switchMode(mode) {
             currentMode = mode;
@@ -223,7 +305,6 @@
                     let history = [];
                     try { history = await fetchFinMindHistory(id); } catch(e) {}
 
-                    // 🔥 取得真實外資買超數據（FinMind）
                     let foreignBuy = 0;
                     try {
                         const today = new Date().toISOString().split('T')[0];
@@ -233,9 +314,7 @@
                             const lastInst = instJson.data[instJson.data.length - 1];
                             foreignBuy = lastInst.Foreign_Investors_Buy_Sell !== undefined ? lastInst.Foreign_Investors_Buy_Sell : 0;
                         }
-                    } catch(e) { 
-                        console.log("無法取得 " + id + " 的外資數據: " + e.message); 
-                    }
+                    } catch(e) {}
 
                     const kdj = calculateKDJ(history);
                     const ma20 = history.length >= 20 ? history.slice(-20).reduce((a, b) => a + b.close, 0) / 20 : quote.price;
@@ -254,7 +333,7 @@
                         strengthScore: priceChange * 10 + (Math.abs(foreignBuy) / 100),
                         volumeRatio
                     });
-                } catch(e) { console.log("掃描 " + id + " 失敗: " + e.message); }
+                } catch(e) {}
             }));
 
             console.log("✅ 掃描完成，取得 " + marketData.length + " 檔股票");
@@ -277,12 +356,16 @@
             tbody.innerHTML = '';
             sorted.forEach((s, idx) => {
                 let displayScore = '';
+                let scoreColor = 'text-purple-300';
+                
                 if (currentMode === 'foreign') {
                     displayScore = Math.round(s.foreignBuy) + '張';
                 } else if (currentMode === 'strength') {
                     displayScore = s.strengthScore.toFixed(1);
+                    scoreColor = 'text-yellow-300';
                 } else {
                     displayScore = s.volumeRatio.toFixed(2) + 'x';
+                    scoreColor = 'text-green-300';
                 }
                 
                 const color = s.change >= 0 ? 'text-profit' : 'text-loss';
@@ -293,7 +376,7 @@
                         <div class="text-[10px] text-slate-500">${s.id}</div>
                     </td>
                     <td class="px-2 py-2 text-right ${color}">${s.price.toFixed(2)}</td>
-                    <td class="px-2 py-2 text-center text-purple-300 font-bold">${displayScore}</td>
+                    <td class="px-2 py-2 text-center ${scoreColor} font-bold">${displayScore}</td>
                 </tr>`;
             });
         }
@@ -301,7 +384,6 @@
         async function checkForeignBuys() {
             const tbody = document.getElementById('foreignBuyBody');
             
-            // 依外資買超排序，取前 20 檔（只看買超的）
             const sorted = [...marketData]
                 .filter(s => s.foreignBuy > 0)
                 .sort((a, b) => b.foreignBuy - a.foreignBuy)
@@ -329,11 +411,109 @@
             });
         }
 
-        // 🔥 快速分析函數
         async function quickAnalyze(stockId) {
             document.getElementById('stockInput').value = stockId;
             await analyzeStock(stockId);
             document.querySelector('.lg\\:col-span-1').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // 🔥 取得買賣五檔
+        async function fetchOrderbook(id) {
+            try {
+                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/orderbook/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
+                const json = await res.json();
+                if (json.bids && json.asks) {
+                    let html = '<div class="space-y-1">';
+                    
+                    html += '<div class="text-center font-bold text-red-400 text-sm mb-2">賣方</div>';
+                    for (let i = json.asks.length - 1; i >= 0; i--) {
+                        const ask = json.asks[i];
+                        html += `<div class="flex justify-between text-slate-300"><span>${ask.price}</span><span>${ask.size}</span></div>`;
+                    }
+                    
+                    html += '<div class="text-center font-bold my-1">---</div>';
+                    
+                    html += '<div class="text-center font-bold text-green-400 text-sm mb-2">買方</div>';
+                    for (let i = 0; i < json.bids.length; i++) {
+                        const bid = json.bids[i];
+                        html += `<div class="flex justify-between text-slate-300"><span>${bid.price}</span><span>${bid.size}</span></div>`;
+                    }
+                    
+                    html += '</div>';
+                    document.getElementById('orderbookContent').innerHTML = html;
+                    document.getElementById('orderbookCard').style.display = 'block';
+                }
+            } catch(e) {
+                console.log("買賣五檔取得失敗");
+            }
+        }
+
+        // 🔥 取得盤中成交明細
+        async function fetchTrades(id) {
+            try {
+                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/trades/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
+                const json = await res.json();
+                if (json.data && json.data.length > 0) {
+                    const tbody = document.getElementById('tradesBody');
+                    tbody.innerHTML = '';
+                    
+                    json.data.slice(-20).reverse().forEach(trade => {
+                        const time = new Date(trade.timestamp).toLocaleTimeString();
+                        const color = trade.price > 0 ? 'text-profit' : 'text-loss';
+                        tbody.innerHTML += `<tr>
+                            <td class="px-3 py-2 text-slate-400">${time}</td>
+                            <td class="px-3 py-2 text-right ${color} font-bold">${trade.price.toFixed(2)}</td>
+                            <td class="px-3 py-2 text-right">${trade.size}</td>
+                        </tr>`;
+                    });
+                }
+            } catch(e) {
+                console.log("成交明細取得失敗");
+            }
+        }
+
+        // 🔥 取得分時 K 線
+        async function fetchCandles(id) {
+            try {
+                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/candles/${id}?timeframe=5min`, { headers: { "X-API-KEY": FUGLE_KEY } });
+                const json = await res.json();
+                if (json.data && json.data.length > 0) {
+                    const ctx = document.getElementById('candleChart').getContext('2d');
+                    
+                    const labels = json.data.map(d => new Date(d.timestamp).toLocaleTimeString());
+                    const closes = json.data.map(d => d.close);
+                    
+                    if (candleChart) candleChart.destroy();
+                    
+                    candleChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: id + ' 分時走勢',
+                                data: closes,
+                                borderColor: '#06b6d4',
+                                backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                                tension: 0.3,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { labels: { color: '#e2e8f0' } }
+                            },
+                            scales: {
+                                y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+                                x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
+                            }
+                        }
+                    });
+                }
+            } catch(e) {
+                console.log("分時 K 線取得失敗");
+            }
         }
 
         async function analyzeStock(id = null) {
@@ -370,6 +550,11 @@
                     document.getElementById('dVal').innerText = '50.0';
                     document.getElementById('jVal').innerText = '50.0';
                 }
+
+                // 🔥 新增功能呼叫
+                fetchOrderbook(stockId);
+                fetchTrades(stockId);
+                fetchCandles(stockId);
             } catch (e) { alert("分析失敗: " + e.message); }
         }
 
