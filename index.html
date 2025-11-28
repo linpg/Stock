@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v5.6</title>
+    <title>台股雙引擎儀表板 v5.7 (分類熱門推薦版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -20,8 +20,14 @@
         .kdj-oversold { background-color: rgba(34, 197, 94, 0.2); color: #86efac; border: 1px solid #22c55e; }
         .kdj-neutral { background-color: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid #64748b; }
         
+        .category-btn { padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; cursor: pointer; transition: all 0.3s; border: 1px solid transparent; }
+        .category-btn.active { background: linear-gradient(90deg, #7c3aed, #db2777); color: white; }
+        .category-btn.inactive { background-color: #334155; color: #94a3b8; }
+        .category-btn:hover { opacity: 0.8; }
+
         .status-tag { font-size: 0.65rem; padding: 1px 4px; border-radius: 2px; font-weight: bold; }
         .status-hot { background: linear-gradient(90deg, #be185d, #db2777); color: white; }
+        .status-new { background: linear-gradient(90deg, #f59e0b, #d97706); color: white; }
         
         .foreign-hunter-tag { background: linear-gradient(90deg, #7c3aed, #db2777); color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; animation: pulse 1.5s infinite; display: inline-block; }
         @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
@@ -72,7 +78,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v5.6 雙重備援版</p>
+            <p class="text-slate-400 text-sm mt-1">v5.7 分類熱門推薦版 | 按類別快速切換</p>
         </div>
         <div class="text-right"><div id="updateTime" class="text-xs text-slate-500">更新中...</div></div>
     </div>
@@ -111,9 +117,24 @@
                 </div>
             </div>
 
+            <!-- 概念股分類選擇器 -->
+            <div class="card p-5">
+                <h2 class="text-xl font-bold mb-4 border-l-4 border-pink-500 pl-3">🏷️ 概念股分類</h2>
+                <div class="flex flex-wrap gap-2">
+                    <button class="category-btn active" onclick="switchCategory('all')">📊 全部</button>
+                    <button class="category-btn inactive" onclick="switchCategory('ai')">🤖 AI伺服器</button>
+                    <button class="category-btn inactive" onclick="switchCategory('pcb')">🔌 PCB供應鏈</button>
+                    <button class="category-btn inactive" onclick="switchCategory('chip')">🧬 AI晶片</button>
+                    <button class="category-btn inactive" onclick="switchCategory('cowos')">⚙️ CoWoS設備</button>
+                    <button class="category-btn inactive" onclick="switchCategory('ship')">⛴️ 航運物流</button>
+                    <button class="category-btn inactive" onclick="switchCategory('memory')">💾 記憶體</button>
+                </div>
+            </div>
+
+            <!-- 熱門股榜 -->
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
-                    <div><h2 class="text-xl font-bold border-l-4 border-pink-500 pl-3">🔥 AI 熱門榜</h2></div>
+                    <div><h2 class="text-xl font-bold border-l-4 border-pink-500 pl-3" id="categoryTitle">🔥 AI伺服器熱門榜</h2></div>
                     <button onclick="scanTrendingStocks()" class="text-xs bg-pink-900 hover:bg-pink-800 text-pink-100 px-3 py-1 rounded border border-pink-700"><span class="animate-spin mr-1 hidden" id="scanSpinner">⟳</span> 刷新</button>
                 </div>
                 <div class="overflow-x-auto h-[500px] pr-1">
@@ -128,7 +149,7 @@
                             </tr>
                         </thead>
                         <tbody id="watchlistBody" class="divide-y divide-slate-700">
-                            <tr><td colspan="5" class="text-center py-8 text-slate-500">正在載入熱門股數據...</td></tr>
+                            <tr><td colspan="5" class="text-center py-8 text-slate-500">正在載入...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -194,16 +215,32 @@
         const FUGLE_KEY = "OGNiYzc2YmQtMzdjYS00NTJkLWI1ZGUtNjY1ODRhNTMwNTAxIDhlMTRiMDVkLTk0NzItNDUzMi05NjY2LTkzYjlhMTQ5NzBjMw==";
         const FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNS0xMS0yNyAxMjoyOToyOSIsInVzZXJfaWQiOiJMSU5QRyIsImlwIjoiMS4xNzAuMTE0LjIwIn0.SyyVMOX2eF6uNVO3EZpkRylFrQqFFXjH1PJcM5oFQt0";
 
-        const HOT_STOCKS_POOL = [
-            '2330', '2317', '2454', '2382', '3231', '6669', '2356', '3035', '3443', '3661', 
-            '3037', '2376', '2368', '3017', '3583', '3131', '6187', '1513', '1519', '1514', 
-            '2603', '2609', '2615', '2881', '2882', '2891', '3034', '3711', '4961', '2408'
-        ];
-        
+        // 🔥 分類股票池
+        const STOCK_CATEGORIES = {
+            all: ['2330', '2317', '2454', '2382', '3231', '6669', '2356', '3035', '3443', '3661', '2316', '4939', '5469', '2376', '3017', '3131', '6187', '2603', '2609', '2615', '2881', '2882', '2891'],
+            ai: ['2382', '3231', '6669', '2356', '2368', '3035', '3443', '2376'],
+            pcb: ['2316', '4939', '5469', '8039', '5475', '5439', '3037', '2313', '1303'],
+            chip: ['2330', '2454', '3661', '3443', '3035', '4722'],
+            cowos: ['3131', '6187', '4510', '1536'],
+            ship: ['2603', '2609', '2615'],
+            memory: ['2344', '4946']
+        };
+
+        const CATEGORY_TITLES = {
+            all: '🔥 全部熱門榜',
+            ai: '🤖 AI伺服器熱門榜',
+            pcb: '🔌 PCB供應鏈熱門榜',
+            chip: '🧬 AI晶片熱門榜',
+            cowos: '⚙️ CoWoS設備熱門榜',
+            ship: '⛴️ 航運物流熱門榜',
+            memory: '💾 記憶體漲價榜'
+        };
+
         let currentStock = null;
         let portfolio = JSON.parse(localStorage.getItem('pro_portfolio_v3')) || [];
         let lastAlertTime = 0;
         let lastBigOrderMap = {}; 
+        let currentCategory = 'all';
 
         window.onload = () => {
             renderPortfolio();
@@ -212,40 +249,34 @@
             setInterval(scanBigOrders, 5000); 
         };
 
-        // 🔥 核心功能：雙重備援報價
-        async function fetchQuoteSafe(id) {
-            try {
-                // 優先嘗試 Fugle
-                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                const json = await res.json();
-                if(json.lastTrade) return { price: json.lastTrade.price, change: json.lastTrade.price - json.openPrice, pct: 0, name: json.name, unit: json.lastTrade.unit, bids: json.order?.bids, asks: json.order?.asks, source: 'Fugle' };
-                throw new Error("Fugle No Data");
-            } catch (e) {
-                console.warn(`Fugle failed for ${id}, trying backup...`);
-                // 備援：FinMind 最新收盤價 (雖非即時但不會報錯)
-                try {
-                    const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${new Date().toISOString().split('T')[0]}&token=${FINMIND_TOKEN}`);
-                    const json = await res.json();
-                    if(json.data && json.data.length > 0) {
-                        const last = json.data[json.data.length - 1];
-                        return { price: last.close, change: last.spread, pct: last.spread/last.open, name: id, unit: last.Trading_Volume/1000, source: 'FinMind' };
-                    }
-                } catch(e2) {}
-                // 最終備援：回傳假數據避免崩潰 (開發測試用)
-                return { price: 0, change: 0, pct: 0, name: id, unit: 0, source: 'None' };
-            }
+        // 🔄 分類切換
+        function switchCategory(cat) {
+            currentCategory = cat;
+            // 更新按鈕狀態
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('inactive');
+            });
+            event.target.classList.remove('inactive');
+            event.target.classList.add('active');
+            // 更新標題
+            document.getElementById('categoryTitle').innerText = CATEGORY_TITLES[cat];
+            // 重新掃描
+            scanTrendingStocks();
         }
 
-        // 🔥 外資獵手 (整合備援)
+        // 🔥 外資獵手
         async function scanBigOrders() {
             const tbody = document.getElementById('bigOrderBody');
             if(tbody.innerHTML.includes('掃描')) tbody.innerHTML = '';
             
-            const randomTargets = HOT_STOCKS_POOL.sort(() => 0.5 - Math.random()).slice(0, 5); 
+            const poolToScan = STOCK_CATEGORIES[currentCategory] || STOCK_CATEGORIES.all;
+            const randomTargets = poolToScan.sort(() => 0.5 - Math.random()).slice(0, 3); 
+            
             for (const id of randomTargets) {
                 try {
                     const quote = await fetchQuoteSafe(id);
-                    if (quote.source === 'Fugle' && quote.unit >= 50) { // 只在 Fugle 有即時單量時觸發
+                    if (quote.source === 'Fugle' && quote.unit >= 50) {
                         const now = Date.now();
                         const lastTime = lastBigOrderMap[id] || 0;
                         const isConsecutive = (now - lastTime) < 60000; 
@@ -273,7 +304,7 @@
             }
         }
 
-        // 🔔 彈窗
+        // 💬 彈窗
         function showAlert(stockName, price, vol, time, desc) {
             if (Date.now() - lastAlertTime < 5000) return;
             lastAlertTime = Date.now();
@@ -289,19 +320,20 @@
         }
         function closeAlert() { document.getElementById('bigOrderAlert').classList.add('hidden'); }
 
-        // 🔥 智能排序 (整合備援)
+        // 🔥 分類熱門掃描
         async function scanTrendingStocks() {
             const tbody = document.getElementById('watchlistBody');
             const spinner = document.getElementById('scanSpinner');
             spinner.classList.remove('hidden');
             
             const trendingList = [];
-            const batch = HOT_STOCKS_POOL.sort(() => 0.5 - Math.random()).slice(0, 15);
+            const poolToScan = STOCK_CATEGORIES[currentCategory] || STOCK_CATEGORIES.all;
+            const batch = poolToScan.sort(() => 0.5 - Math.random()).slice(0, 12);
 
             await Promise.all(batch.map(async (id) => {
                 try {
                     const quote = await fetchQuoteSafe(id);
-                    if (quote.price === 0) return; // 跳過無效數據
+                    if (quote.price === 0) return;
                     
                     let kdjText = '-';
                     let buyPoint = quote.price * 0.9;
@@ -313,7 +345,7 @@
                         if (history.length >= 5) buyPoint = Math.min(...history.slice(-5).map(d => d.min));
                     } catch(e) {}
 
-                    const score = quote.change || 0; // 用漲跌金額當分數
+                    const score = quote.change || 0;
                     
                     trendingList.push({
                         id: id, name: quote.name, price: quote.price, change: quote.change, kdjText: kdjText, buyPoint: buyPoint, score: score
@@ -351,7 +383,7 @@
             spinner.classList.add('hidden');
         }
 
-        // 分析功能 (整合備援)
+        // 分析功能
         async function analyzeStock(inputId = null) {
             const stockId = inputId || document.getElementById('stockInput').value.trim();
             if (!stockId) return alert("請輸入代碼");
@@ -369,11 +401,29 @@
                 
                 currentStock = { id: stockId, name: quote.name, price: quote.price, buyPoint: buyPoint, kdj: kdj };
                 updateAnalysisUI(currentStock, quote);
-                
-                // 只有 Fugle 來源才有五檔
                 renderOrderBook(quote.bids, quote.asks);
             } catch (e) { console.error(e); alert("分析失敗: " + e.message); } 
             finally { if(btn) btn.innerText = "分析"; }
+        }
+
+        async function fetchQuoteSafe(id) {
+            try {
+                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
+                const json = await res.json();
+                if(json.lastTrade) return { price: json.lastTrade.price, change: json.lastTrade.price - json.openPrice, pct: 0, name: json.name, unit: json.lastTrade.unit, bids: json.order?.bids, asks: json.order?.asks, source: 'Fugle' };
+                throw new Error("Fugle No Data");
+            } catch (e) {
+                console.warn(`Fugle failed for ${id}, trying backup...`);
+                try {
+                    const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${new Date().toISOString().split('T')[0]}&token=${FINMIND_TOKEN}`);
+                    const json = await res.json();
+                    if(json.data && json.data.length > 0) {
+                        const last = json.data[json.data.length - 1];
+                        return { price: last.close, change: last.spread, pct: last.spread/last.open, name: id, unit: last.Trading_Volume/1000, source: 'FinMind' };
+                    }
+                } catch(e2) {}
+                return { price: 0, change: 0, pct: 0, name: id, unit: 0, source: 'None' };
+            }
         }
 
         function renderOrderBook(bids, asks) {
@@ -430,7 +480,7 @@
         }
         function removeP(i) { portfolio.splice(i, 1); saveAndRender(); }
         function saveAndRender() { localStorage.setItem('pro_portfolio_v3', JSON.stringify(portfolio)); renderPortfolio(); }
-        function exportData() { if (portfolio.length === 0) return alert("無資料可備份"); const code = JSON.stringify(portfolio); navigator.clipboard.writeText(code).then(() => alert("✅ 代碼已複製")).catch(() => { console.log(code); alert("複製失敗，請看 Console"); }); }
+        function exportData() { if (portfolio.length === 0) return alert("無資料可備份"); const code = JSON.stringify(portfolio); navigator.clipboard.writeText(code).then(() => alert("✅ 代碼已複製")).catch(() => { console.log(code); alert("複製失敗"); }); }
         function importData() { const code = prompt("請貼上備份代碼："); if (!code) return; try { portfolio = JSON.parse(code); saveAndRender(); alert("✅ 還原成功"); } catch (e) { alert("❌ 代碼錯誤"); } }
         async function updatePortfolioPrices() { for(let p of portfolio) { try { const q = await fetchQuoteSafe(p.id); if(q.price) p.curr = q.price; const h = await fetchFinMindHistory(p.id); const k = calculateKDJ(h); if(k) p.kdjState = k.k > 80 ? 'high' : k.k < 20 ? 'low' : 'mid'; } catch(e){} } saveAndRender(); }
     </script>
