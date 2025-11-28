@@ -213,20 +213,29 @@
         let marketData = [];
 
         window.onload = () => {
-            console.log("✅ 儀表板初始化開始");
-            renderPortfolio();
-            scanMarket();
-            setInterval(updatePortfolioPrices, 30000);
-            setInterval(checkForeignBuys, 3000);
-            
-            // 每 10 秒更新狀態
-            setInterval(() => {
-                if (marketData.length > 0) {
-                    document.getElementById('statusIndicator').innerText = '✅ 正常運行 (' + marketData.length + ' 檔)';
-                    document.getElementById('statusIndicator').className = 'text-xs text-green-400';
-                }
-            }, 10000);
-        };
+    console.log("✅ 儀表板初始化開始");
+    renderPortfolio();
+    
+    // 先掃描一次，等 5 秒後才開始定時檢查
+    scanMarket().then(() => {
+        console.log("✅ 初始掃描完成，開始定時監控");
+        setInterval(checkForeignBuys, 3000);
+        setInterval(scanMarket, 60000); // 每 60 秒重新掃描一次
+    });
+    
+    setInterval(updatePortfolioPrices, 30000);
+    
+    // 每 10 秒更新狀態
+    setInterval(() => {
+        if (marketData.length > 0) {
+            document.getElementById('statusIndicator').innerText = '✅ 正常運行 (' + marketData.length + ' 檔)';
+            document.getElementById('statusIndicator').className = 'text-xs text-green-400';
+        } else {
+            document.getElementById('statusIndicator').innerText = '⏳ 等待數據...';
+            document.getElementById('statusIndicator').className = 'text-xs text-yellow-400';
+        }
+    }, 10000);
+};
 
         function switchMode(mode) {
             currentMode = mode;
