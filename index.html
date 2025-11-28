@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v5.19 (FinMind 穩定版)</title>
+    <title>台股雙引擎儀表板 v5.20 (完全修復版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -43,7 +43,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v5.19 FinMind 穩定版 | 外資籌碼實時排名</p>
+            <p class="text-slate-400 text-sm mt-1">v5.20 完全修復版 | 所有功能正常</p>
         </div>
         <div id="statusIndicator" class="text-xs text-yellow-400 pulse">🔄 初始化中...</div>
     </div>
@@ -156,7 +156,6 @@
     </div>
 
     <script>
-        const FUGLE_KEY = "OGNiYzc2YmQtMzdjYS00NTJkLWI1ZGUtNjY1ODRhNTMwNTAxIDhlMTRiMDVkLTk0NzItNDUzMi05NjY2LTkzYjlhMTQ5NzBjMw==";
         const FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJkYXRlIjoiMjAyNS0xMS0yNyAxMjoyOToyOSIsInVzZXJfaWQiOiJMSU5QRyIsImlwIjoiMS4xNzAuMTE0LjIwIn0.SyyVMOX2eF6uNVO3EZpkRylFrQqFFXjH1PJcM5oFQt0";
 
         const LIQUID_STOCKS = ['2330', '2317', '2454', '2382', '3231', '6669', '2356', '3035', '3443', '3661', '2316', '4939', '5469', '8039', '5475', '5439', '3037', '2313', '1303', '2376', '3017', '3131', '6187', '4510', '1536', '2603', '2609', '2615', '2891', '2882', '2881', '2344', '4946', '4722', '2438', '1513', '1519', '1514', '6280', '3045', '2368', '3711', '4961', '2408', '3008', '3034', '5283', '8016', '3583', '2402', '2409', '2412', '2414', '2449', '2450', '2474', '2475', '2492', '2880', '3022', '3169', '3481', '3529', '3558', '3707', '4155', '4306', '4904', '4938', '5274', '5388', '5410', '5471', '5484', '6121', '6239', '6409', '6488', '6533', '8081', '8110', '8150', '8210', '9910', '9917', '9918', '9919', '9941'];
@@ -177,13 +176,10 @@
         let currentMode = 'foreign';
         let currentCategory = 'all';
         let currentStock = null;
-        let lastForeignDate = null;
 
         window.onload = () => {
             renderPortfolio();
             scanMarket();
-            
-            // 🔥 每 60 秒自動更新
             setInterval(async () => {
                 console.log("🔄 自動更新外資籌碼中...");
                 foreignDataMap = {};
@@ -192,7 +188,6 @@
                 checkForeignBuys();
                 document.getElementById('statusIndicator').innerText = '✅ 已更新 (' + new Date().toLocaleTimeString() + ')';
             }, 60000);
-
             setInterval(checkForeignBuys, 3000);
             setInterval(updatePortfolioPrices, 30000);
         };
@@ -204,7 +199,6 @@
             if (mode === 'foreign') buttons[0].classList.add('active');
             else if (mode === 'strength') buttons[1].classList.add('active');
             else if (mode === 'volume') buttons[2].classList.add('active');
-            
             const titles = { foreign: '🔥 外資買超排名', strength: '💪 綜合強勢排名', volume: '📈 量能突破排名' };
             const headers = { foreign: '外資', strength: '強度', volume: '量比' };
             document.getElementById('modeTitle').innerText = titles[mode];
@@ -223,37 +217,29 @@
             renderWatchlist();
         }
 
-        // 🔥 從 FinMind 取得外資籌碼（自動找到最新的有效日期）
         async function fetchForeignInvestorsFromFinMind() {
             try {
                 console.log("🔄 正在從 FinMind 取得外資籌碼...");
-                
-                // 🔥 從最近開始往回查，直到找到有數據的日期
                 for (let daysBack = 0; daysBack <= 5; daysBack++) {
                     const d = new Date();
                     d.setDate(d.getDate() - daysBack);
                     const dateStr = d.toISOString().split('T')[0];
-                    
                     try {
                         const url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInstitutionalInvestorsBuySell&start_date=${dateStr}&end_date=${dateStr}&token=${FINMIND_TOKEN}`;
                         const res = await fetch(url);
                         const json = await res.json();
-                        
                         if (json.msg === 'success' && json.data && json.data.length > 0) {
                             json.data.forEach(row => {
                                 const stockId = row.stock_id;
                                 const foreignBuySell = row.Foreign_Investors_Buy_Sell || 0;
                                 foreignDataMap[stockId] = foreignBuySell;
                             });
-                            
-                            lastForeignDate = dateStr;
                             console.log("✅ 取得 " + Object.keys(foreignDataMap).length + " 檔外資籌碼 (日期: " + dateStr + ")");
                             document.getElementById('updateDateLabel').innerText = "(" + dateStr + ")";
                             return true;
                         }
                     } catch(e) {}
                 }
-                
                 console.log("⚠️ FinMind 未找到有效數據");
                 return false;
             } catch(e) {
@@ -266,31 +252,24 @@
             document.getElementById('statusIndicator').innerText = '🔄 掃描中...';
             marketData = [];
             const pool = STOCK_CATEGORIES[currentCategory] || LIQUID_STOCKS;
-
             if (Object.keys(foreignDataMap).length === 0) {
                 await fetchForeignInvestorsFromFinMind();
             }
-
             await Promise.all(pool.map(async (id) => {
                 try {
                     const quote = await fetchQuoteSafe(id);
                     if (!quote || quote.price === 0) return;
-
                     let history = [];
                     try { history = await fetchFinMindHistory(id); } catch(e) {}
-
                     let foreignBuy = foreignDataMap[id] !== undefined ? foreignDataMap[id] : 0;
-
                     const kdj = calculateKDJ(history);
                     const priceChange = quote.change || 0;
-                    
                     let volumeRatio = 1.0;
                     if (history.length >= 20) {
                         const ma20Vol = history.slice(-20).reduce((a, b) => a + b.volume, 0) / 20;
                         const todayVol = history.length > 0 ? history[history.length - 1].volume : 1;
                         volumeRatio = ma20Vol > 0 ? todayVol / ma20Vol : 1.0;
                     }
-
                     marketData.push({
                         id, name: quote.name, price: quote.price, change: priceChange, kdj,
                         foreignBuy: Math.round(foreignBuy),
@@ -299,7 +278,6 @@
                     });
                 } catch(e) {}
             }));
-
             console.log("✅ 掃描完成，取得 " + marketData.length + " 檔股票");
             document.getElementById('statusIndicator').innerText = '✅ 已更新 (' + new Date().toLocaleTimeString() + ')';
             renderWatchlist();
@@ -309,69 +287,32 @@
         function renderWatchlist() {
             const tbody = document.getElementById('watchlistBody');
             let sorted = [...marketData];
-            
             if (currentMode === 'foreign') sorted.sort((a, b) => b.foreignBuy - a.foreignBuy);
             else if (currentMode === 'strength') sorted.sort((a, b) => b.strengthScore - a.strengthScore);
             else sorted.sort((a, b) => b.volumeRatio - a.volumeRatio);
-
             const pool = STOCK_CATEGORIES[currentCategory] || LIQUID_STOCKS;
             sorted = sorted.filter(s => pool.includes(s.id)).slice(0, 30);
-
             tbody.innerHTML = '';
             sorted.forEach((s, idx) => {
-                let displayScore = '';
-                let scoreColor = 'text-purple-300';
-                
-                if (currentMode === 'foreign') {
-                    displayScore = Math.round(s.foreignBuy) + '張';
-                } else if (currentMode === 'strength') {
-                    displayScore = s.strengthScore.toFixed(1);
-                    scoreColor = 'text-yellow-300';
-                } else {
-                    displayScore = s.volumeRatio.toFixed(2) + 'x';
-                    scoreColor = 'text-green-300';
-                }
-                
+                let displayScore = '', scoreColor = 'text-purple-300';
+                if (currentMode === 'foreign') displayScore = Math.round(s.foreignBuy) + '張';
+                else if (currentMode === 'strength') { displayScore = s.strengthScore.toFixed(1); scoreColor = 'text-yellow-300'; }
+                else { displayScore = s.volumeRatio.toFixed(2) + 'x'; scoreColor = 'text-green-300'; }
                 const color = s.change >= 0 ? 'text-profit' : 'text-loss';
-                tbody.innerHTML += `<tr class="hover:bg-slate-700 cursor-pointer" onclick="analyzeStock('${s.id}')">
-                    <td class="px-2 py-2">${idx+1}</td>
-                    <td class="px-2 py-2">
-                        <div class="font-bold">${s.name}</div>
-                        <div class="text-[10px] text-slate-500">${s.id}</div>
-                    </td>
-                    <td class="px-2 py-2 text-right ${color}">${s.price.toFixed(2)}</td>
-                    <td class="px-2 py-2 text-center ${scoreColor} font-bold">${displayScore}</td>
-                </tr>`;
+                tbody.innerHTML += `<tr class="hover:bg-slate-700 cursor-pointer" onclick="analyzeStock('${s.id}')"><td class="px-2 py-2">${idx+1}</td><td class="px-2 py-2"><div class="font-bold">${s.name}</div><div class="text-[10px] text-slate-500">${s.id}</div></td><td class="px-2 py-2 text-right ${color}">${s.price.toFixed(2)}</td><td class="px-2 py-2 text-center ${scoreColor} font-bold">${displayScore}</td></tr>`;
             });
         }
 
         async function checkForeignBuys() {
             const tbody = document.getElementById('foreignBuyBody');
-            
-            const sorted = [...marketData]
-                .filter(s => s.foreignBuy > 0)
-                .sort((a, b) => b.foreignBuy - a.foreignBuy)
-                .slice(0, 20);
-
+            const sorted = [...marketData].filter(s => s.foreignBuy > 0).sort((a, b) => b.foreignBuy - a.foreignBuy).slice(0, 20);
             tbody.innerHTML = '';
-
             if (sorted.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-500">
-                    今日尚未有外資買超個股
-                </td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-500">今日尚未有外資買超個股</td></tr>`;
                 return;
             }
-
             sorted.forEach((stock, idx) => {
-                tbody.innerHTML += `<tr class="cursor-pointer hover:bg-slate-700" onclick="quickAnalyze('${stock.id}')">
-                    <td class="px-4 py-3 text-slate-400">${idx + 1}</td>
-                    <td class="px-4 py-3">
-                        <div class="font-bold">${stock.name}</div>
-                        <div class="text-[10px] text-slate-500">${stock.id}</div>
-                    </td>
-                    <td class="px-4 py-3 text-right text-purple-400 font-bold">${Math.round(stock.foreignBuy)}</td>
-                    <td class="px-4 py-3 text-right">${stock.price.toFixed(2)}</td>
-                </tr>`;
+                tbody.innerHTML += `<tr class="cursor-pointer hover:bg-slate-700" onclick="quickAnalyze('${stock.id}')"><td class="px-4 py-3 text-slate-400">${idx + 1}</td><td class="px-4 py-3"><div class="font-bold">${stock.name}</div><div class="text-[10px] text-slate-500">${stock.id}</div></td><td class="px-4 py-3 text-right text-purple-400 font-bold">${Math.round(stock.foreignBuy)}</td><td class="px-4 py-3 text-right">${stock.price.toFixed(2)}</td></tr>`;
             });
         }
 
@@ -383,19 +324,14 @@
         async function analyzeStock(id = null) {
             const stockId = id || document.getElementById('stockInput').value.trim();
             if (!stockId) return alert("請輸入代碼");
-
             try {
                 const quote = await fetchQuoteSafe(stockId);
                 if (!quote || quote.price === 0) throw new Error("無法取得報價");
-
                 let history = [];
                 try { history = await fetchFinMindHistory(stockId); } catch(e) {}
-
                 const kdj = calculateKDJ(history);
                 let buyPoint = history.length >= 5 ? Math.min(...history.slice(-5).map(d => d.min)) : quote.price * 0.95;
-
                 currentStock = { id: stockId, name: quote.name, price: quote.price, buyPoint, kdj, change: quote.change };
-                
                 document.getElementById('analysisResult').classList.remove('hidden');
                 document.getElementById('stockNameDisplay').innerText = `${quote.name} (${stockId})`;
                 const color = quote.change >= 0 ? 'text-profit' : 'text-loss';
@@ -404,7 +340,6 @@
                 document.getElementById('priceChange').innerText = quote.change.toFixed(2);
                 document.getElementById('priceChange').className = `font-bold ${color}`;
                 document.getElementById('recommendBuy').innerText = buyPoint.toFixed(1);
-                
                 if (kdj) {
                     document.getElementById('kVal').innerText = kdj.k.toFixed(1);
                     document.getElementById('dVal').innerText = kdj.d.toFixed(1);
@@ -419,18 +354,27 @@
 
         async function fetchQuoteSafe(id) {
             try {
-                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                const json = await res.json();
-                if (json.lastTrade) return { price: json.lastTrade.price, change: json.lastTrade.price - json.openPrice, name: json.name };
-            } catch(e) {
-                try {
-                    const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${new Date().toISOString().split('T')[0]}&token=${FINMIND_TOKEN}`);
-                    const json = await res.json();
-                    if (json.data && json.data.length > 0) {
-                        const last = json.data[json.data.length - 1];
-                        return { price: last.close, change: last.spread, name: id };
+                for (let daysBack = 0; daysBack <= 2; daysBack++) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - daysBack);
+                    const dateStr = d.toISOString().split('T')[0];
+                    try {
+                        const url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${dateStr}&end_date=${dateStr}&token=${FINMIND_TOKEN}`;
+                        const res = await fetch(url);
+                        const json = await res.json();
+                        if (json.msg === 'success' && json.data && json.data.length > 0) {
+                            const last = json.data[json.data.length - 1];
+                            const spread = last.spread !== undefined ? last.spread : (last.close - last.open);
+                            console.log("✅ 取得 " + id + " 報價 (日期: " + dateStr + ", 價格: " + last.close + ")");
+                            return { price: last.close, change: spread, name: last.symbol || id };
+                        }
+                    } catch(e) {
+                        console.log("⚠️ " + dateStr + " 查詢失敗");
                     }
-                } catch(e2) {}
+                }
+                console.log("❌ 無法取得 " + id + " 的報價數據");
+            } catch(e) {
+                console.log("❌ fetchQuoteSafe 錯誤: " + e.message);
             }
             return null;
         }
