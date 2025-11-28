@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v5.16 (簡潔穩定版)</title>
+    <title>台股雙引擎儀表板 v5.17 (台灣證交所外資版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -40,7 +40,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v5.16 簡潔穩定版 | 100% 真實數據</p>
+            <p class="text-slate-400 text-sm mt-1">v5.17 台灣證交所外資版 | 實時籌碼數據</p>
         </div>
         <div id="statusIndicator" class="text-xs text-yellow-400">🔄 初始化中...</div>
     </div>
@@ -169,6 +169,7 @@
         };
 
         let marketData = [];
+        let foreignDataMap = {};
         let portfolio = JSON.parse(localStorage.getItem('pro_portfolio_v3')) || [];
         let currentMode = 'foreign';
         let currentCategory = 'all';
@@ -207,10 +208,46 @@
             renderWatchlist();
         }
 
+        // 🔥 從台灣證交所取得外資籌碼
+        async function fetchForeignInvestorsFromTWSE() {
+            try {
+                const d = new Date();
+                const dateStr = d.getFullYear() + 
+                               String(d.getMonth() + 1).padStart(2, '0') + 
+                               String(d.getDate()).padStart(2, '0');
+                
+                console.log("🔄 正在從台灣證交所取得外資籌碼...");
+                const url = `https://www.twse.com.tw/exchangeReport/MI_QFIIS?response=json&date=${dateStr}`;
+                const res = await fetch(url);
+                const json = await res.json();
+                
+                if (json.stat === 'OK' && json.data) {
+                    json.data.forEach(row => {
+                        const stockId = row[0].trim();
+                        const netBuySell = parseInt(row[4]) || 0;  // row[4] = 買賣超(淨額)
+                        foreignDataMap[stockId] = netBuySell;
+                    });
+                    console.log("✅ 取得 " + Object.keys(foreignDataMap).length + " 檔外資籌碼");
+                    return true;
+                } else {
+                    console.log("⚠️ 台灣證交所未有今日數據");
+                    return false;
+                }
+            } catch(e) {
+                console.log("⚠️ 台灣證交所外資數據取得失敗: " + e.message);
+                return false;
+            }
+        }
+
         async function scanMarket() {
             document.getElementById('statusIndicator').innerText = '🔄 掃描中...';
             marketData = [];
             const pool = STOCK_CATEGORIES[currentCategory] || LIQUID_STOCKS;
+
+            // 🔥 先取得外資籌碼
+            if (Object.keys(foreignDataMap).length === 0) {
+                await fetchForeignInvestorsFromTWSE();
+            }
 
             await Promise.all(pool.map(async (id) => {
                 try {
@@ -220,16 +257,8 @@
                     let history = [];
                     try { history = await fetchFinMindHistory(id); } catch(e) {}
 
-                    let foreignBuy = 0;
-                    try {
-                        const today = new Date().toISOString().split('T')[0];
-                        const instRes = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInstitutionalInvestorsBuySell&data_id=${id}&start_date=${today}&token=${FINMIND_TOKEN}`);
-                        const instJson = await instRes.json();
-                        if (instJson.data && instJson.data.length > 0) {
-                            const lastInst = instJson.data[instJson.data.length - 1];
-                            foreignBuy = lastInst.Foreign_Investors_Buy_Sell !== undefined ? lastInst.Foreign_Investors_Buy_Sell : 0;
-                        }
-                    } catch(e) {}
+                    // 從 foreignDataMap 取得外資買賣超
+                    let foreignBuy = foreignDataMap[id] !== undefined ? foreignDataMap[id] : 0;
 
                     const kdj = calculateKDJ(history);
                     const priceChange = quote.change || 0;
