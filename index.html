@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v6.0 (完整功能版)</title>
+    <title>台股雙引擎儀表板 v5.16 (簡潔穩定版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
         .card { background-color: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; }
         .input-field { background-color: #0f172a; border: 1px solid #475569; color: white; }
-        .btn-primary { background-color: #06b6d4; color: white; transition: all 0.2s; }
+        .btn-primary { background-color: #06b6d4; color: white; transition: all 0.2s; cursor: pointer; }
         .btn-primary:hover { background-color: #0891b2; }
         .text-profit { color: #ef4444; } 
         .text-loss { color: #22c55e; }
@@ -41,30 +40,9 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v6.0 完整功能版 | Fugle 全數據整合</p>
+            <p class="text-slate-400 text-sm mt-1">v5.16 簡潔穩定版 | 100% 真實數據</p>
         </div>
         <div id="statusIndicator" class="text-xs text-yellow-400">🔄 初始化中...</div>
-    </div>
-
-    <!-- 市場概況 -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div class="card p-4">
-            <div class="text-xs text-slate-400">加權指數</div>
-            <div id="indexValue" class="text-2xl font-bold text-cyan-400">--</div>
-            <div id="indexChange" class="text-sm text-slate-500">--</div>
-        </div>
-        <div class="card p-4">
-            <div class="text-xs text-slate-400">漲停檔數</div>
-            <div id="limitUpCount" class="text-2xl font-bold text-profit">--</div>
-        </div>
-        <div class="card p-4">
-            <div class="text-xs text-slate-400">跌停檔數</div>
-            <div id="limitDownCount" class="text-2xl font-bold text-loss">--</div>
-        </div>
-        <div class="card p-4">
-            <div class="text-xs text-slate-400">成交金額</div>
-            <div id="marketValue" class="text-2xl font-bold text-purple-400">--</div>
-        </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -89,14 +67,6 @@
                     </div>
                     <div><div class="text-sm text-slate-400">建議買點</div><div id="recommendBuy" class="text-xl font-bold text-yellow-400">--</div></div>
                     <button onclick="openAddModal()" class="w-full bg-cyan-700 text-white py-3 rounded-lg font-bold">+ 加入持倉</button>
-                </div>
-            </div>
-
-            <!-- 買賣五檔 -->
-            <div class="card p-5" id="orderbookCard" style="display:none;">
-                <h2 class="text-xl font-bold mb-4 border-l-4 border-blue-400 pl-3">📊 買賣五檔</h2>
-                <div id="orderbookContent" class="text-xs space-y-1">
-                    <div class="text-center text-slate-500">加載中...</div>
                 </div>
             </div>
 
@@ -128,7 +98,7 @@
             <div class="card p-5">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold border-l-4 border-pink-500 pl-3" id="modeTitle">🔥 外資買超排名</h2>
-                    <button onclick="scanMarket()" class="text-xs bg-pink-900 text-pink-100 px-3 py-1 rounded">刷新</button>
+                    <button onclick="scanMarket()" class="text-xs bg-pink-900 text-pink-100 px-3 py-1 rounded hover:bg-pink-800">刷新</button>
                 </div>
                 <div class="overflow-y-auto h-[500px]">
                     <table class="w-full text-xs text-left">
@@ -145,29 +115,6 @@
 
         <!-- 右側 -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- 盤中成交明細 -->
-            <div class="card p-5">
-                <h2 class="text-xl font-bold border-l-4 border-green-500 pl-3 mb-4">🎯 盤中成交明細</h2>
-                <div class="overflow-y-auto max-h-48 bg-black/20 rounded-lg border border-slate-700/50">
-                    <table class="w-full text-xs text-left">
-                        <thead class="bg-slate-800 sticky top-0">
-                            <tr><th class="px-3 py-2">時間</th><th class="px-3 py-2 text-right">成交價</th><th class="px-3 py-2 text-right">成交量</th></tr>
-                        </thead>
-                        <tbody id="tradesBody" class="divide-y divide-slate-700">
-                            <tr><td colspan="3" class="text-center py-6 text-slate-500">請先分析個股</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 分時 K 線 -->
-            <div class="card p-5">
-                <h2 class="text-xl font-bold border-l-4 border-orange-500 pl-3 mb-4">📈 分時 K 線（5分鐘）</h2>
-                <div style="height: 300px;">
-                    anvas id="candleChart"></canvas>
-                </div>
-            </div>
-
             <!-- 外資買超排名 -->
             <div class="card p-5">
                 <h2 class="text-xl font-bold border-l-4 border-purple-500 pl-3 mb-4">🎯 外資買超前 20 檔</h2>
@@ -188,8 +135,8 @@
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold border-l-4 border-purple-400 pl-3">💼 持倉損益</h2>
                     <div class="flex gap-2">
-                        <button onclick="exportData()" class="text-xs bg-blue-900 text-blue-300 px-3 py-1 rounded">備份</button>
-                        <button onclick="importData()" class="text-xs bg-green-900 text-green-300 px-3 py-1 rounded">還原</button>
+                        <button onclick="exportData()" class="text-xs bg-blue-900 text-blue-300 px-3 py-1 rounded hover:bg-blue-800">備份</button>
+                        <button onclick="importData()" class="text-xs bg-green-900 text-green-300 px-3 py-1 rounded hover:bg-green-800">還原</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
@@ -226,45 +173,13 @@
         let currentMode = 'foreign';
         let currentCategory = 'all';
         let currentStock = null;
-        let candleChart = null;
 
         window.onload = () => {
             renderPortfolio();
             scanMarket();
-            updateMarketStats();
             setInterval(checkForeignBuys, 3000);
             setInterval(updatePortfolioPrices, 30000);
-            setInterval(updateMarketStats, 60000);
         };
-
-        // 🔥 更新市場統計
-        async function updateMarketStats() {
-            try {
-                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/stats`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                const json = await res.json();
-                
-                if (json.info) {
-                    document.getElementById('limitUpCount').innerText = json.info.limitUpCount || 0;
-                    document.getElementById('limitDownCount').innerText = json.info.limitDownCount || 0;
-                    document.getElementById('marketValue').innerText = (json.info.tradeValue / 1000000000).toFixed(1) + '十億';
-                }
-
-                // 加權指數
-                const indexRes = await fetch(`https://api.fugle.tw/marketdata/v1.0/indices/quote/TAIEX`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                const indexJson = await indexRes.json();
-                if (indexJson.lastTrade) {
-                    const val = indexJson.lastTrade.price;
-                    const change = indexJson.lastTrade.price - indexJson.openPrice;
-                    const color = change >= 0 ? 'text-profit' : 'text-loss';
-                    document.getElementById('indexValue').innerText = val.toFixed(2);
-                    document.getElementById('indexValue').className = `text-2xl font-bold ${color}`;
-                    document.getElementById('indexChange').innerText = (change > 0 ? '+' : '') + change.toFixed(2);
-                    document.getElementById('indexChange').className = `text-sm ${color}`;
-                }
-            } catch(e) {
-                console.log("市場統計更新失敗: " + e.message);
-            }
-        }
 
         function switchMode(mode) {
             currentMode = mode;
@@ -317,7 +232,6 @@
                     } catch(e) {}
 
                     const kdj = calculateKDJ(history);
-                    const ma20 = history.length >= 20 ? history.slice(-20).reduce((a, b) => a + b.close, 0) / 20 : quote.price;
                     const priceChange = quote.change || 0;
                     
                     let volumeRatio = 1.0;
@@ -414,106 +328,6 @@
         async function quickAnalyze(stockId) {
             document.getElementById('stockInput').value = stockId;
             await analyzeStock(stockId);
-            document.querySelector('.lg\\:col-span-1').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-
-        // 🔥 取得買賣五檔
-        async function fetchOrderbook(id) {
-            try {
-                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/orderbook/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                const json = await res.json();
-                if (json.bids && json.asks) {
-                    let html = '<div class="space-y-1">';
-                    
-                    html += '<div class="text-center font-bold text-red-400 text-sm mb-2">賣方</div>';
-                    for (let i = json.asks.length - 1; i >= 0; i--) {
-                        const ask = json.asks[i];
-                        html += `<div class="flex justify-between text-slate-300"><span>${ask.price}</span><span>${ask.size}</span></div>`;
-                    }
-                    
-                    html += '<div class="text-center font-bold my-1">---</div>';
-                    
-                    html += '<div class="text-center font-bold text-green-400 text-sm mb-2">買方</div>';
-                    for (let i = 0; i < json.bids.length; i++) {
-                        const bid = json.bids[i];
-                        html += `<div class="flex justify-between text-slate-300"><span>${bid.price}</span><span>${bid.size}</span></div>`;
-                    }
-                    
-                    html += '</div>';
-                    document.getElementById('orderbookContent').innerHTML = html;
-                    document.getElementById('orderbookCard').style.display = 'block';
-                }
-            } catch(e) {
-                console.log("買賣五檔取得失敗");
-            }
-        }
-
-        // 🔥 取得盤中成交明細
-        async function fetchTrades(id) {
-            try {
-                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/trades/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                const json = await res.json();
-                if (json.data && json.data.length > 0) {
-                    const tbody = document.getElementById('tradesBody');
-                    tbody.innerHTML = '';
-                    
-                    json.data.slice(-20).reverse().forEach(trade => {
-                        const time = new Date(trade.timestamp).toLocaleTimeString();
-                        const color = trade.price > 0 ? 'text-profit' : 'text-loss';
-                        tbody.innerHTML += `<tr>
-                            <td class="px-3 py-2 text-slate-400">${time}</td>
-                            <td class="px-3 py-2 text-right ${color} font-bold">${trade.price.toFixed(2)}</td>
-                            <td class="px-3 py-2 text-right">${trade.size}</td>
-                        </tr>`;
-                    });
-                }
-            } catch(e) {
-                console.log("成交明細取得失敗");
-            }
-        }
-
-        // 🔥 取得分時 K 線
-        async function fetchCandles(id) {
-            try {
-                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/candles/${id}?timeframe=5min`, { headers: { "X-API-KEY": FUGLE_KEY } });
-                const json = await res.json();
-                if (json.data && json.data.length > 0) {
-                    const ctx = document.getElementById('candleChart').getContext('2d');
-                    
-                    const labels = json.data.map(d => new Date(d.timestamp).toLocaleTimeString());
-                    const closes = json.data.map(d => d.close);
-                    
-                    if (candleChart) candleChart.destroy();
-                    
-                    candleChart = new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: labels,
-                            datasets: [{
-                                label: id + ' 分時走勢',
-                                data: closes,
-                                borderColor: '#06b6d4',
-                                backgroundColor: 'rgba(6, 182, 212, 0.1)',
-                                tension: 0.3,
-                                fill: true
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { labels: { color: '#e2e8f0' } }
-                            },
-                            scales: {
-                                y: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
-                                x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } }
-                            }
-                        }
-                    });
-                }
-            } catch(e) {
-                console.log("分時 K 線取得失敗");
-            }
         }
 
         async function analyzeStock(id = null) {
@@ -550,11 +364,6 @@
                     document.getElementById('dVal').innerText = '50.0';
                     document.getElementById('jVal').innerText = '50.0';
                 }
-
-                // 🔥 新增功能呼叫
-                fetchOrderbook(stockId);
-                fetchTrades(stockId);
-                fetchCandles(stockId);
             } catch (e) { alert("分析失敗: " + e.message); }
         }
 
@@ -599,7 +408,7 @@
         function openAddModal() { if (!currentStock) return alert("請先分析一檔股票"); document.getElementById('modalStockName').value = `${currentStock.name}`; document.getElementById('modalCost').value = currentStock.price; document.getElementById('addPortfolioModal').classList.remove('hidden'); }
         function closeModal() { document.getElementById('addPortfolioModal').classList.add('hidden'); }
         function confirmAddPortfolio() { const qty = +document.getElementById('modalQty').value; const cost = +document.getElementById('modalCost').value; if (!qty || !cost) return; portfolio.push({ id: currentStock.id, name: currentStock.name, cost, qty, curr: currentStock.price }); saveAndRender(); closeModal(); }
-        function renderPortfolio() { const tbody = document.getElementById('portfolioBody'); let total = 0; tbody.innerHTML = ''; portfolio.forEach((p, i) => { const pnl = (p.curr - p.cost) * p.qty * 1000; total += pnl; const color = pnl >= 0 ? 'text-profit' : 'text-loss'; tbody.innerHTML += `<tr><td class="px-4 py-3">${p.name}</td><td class="px-4 py-3 text-right">${p.cost.toFixed(2)}</td><td class="px-4 py-3 text-right">${p.curr.toFixed(2)}</td><td class="px-4 py-3 text-right">${p.qty}</td><td class="px-4 py-3 text-right font-bold ${color}">${Math.round(pnl)}</td><td class="px-4 py-3 text-center"><button onclick="removeP(${i})" class="text-red-400">✕</button></td></tr>`; }); document.getElementById('totalProfit').innerText = Math.round(total).toLocaleString(); document.getElementById('totalProfit').className = `text-2xl font-bold ${total >= 0 ? 'text-profit' : 'text-loss'}`; }
+        function renderPortfolio() { const tbody = document.getElementById('portfolioBody'); let total = 0; tbody.innerHTML = ''; portfolio.forEach((p, i) => { const pnl = (p.curr - p.cost) * p.qty * 1000; total += pnl; const color = pnl >= 0 ? 'text-profit' : 'text-loss'; tbody.innerHTML += `<tr><td class="px-4 py-3">${p.name}</td><td class="px-4 py-3 text-right">${p.cost.toFixed(2)}</td><td class="px-4 py-3 text-right">${p.curr.toFixed(2)}</td><td class="px-4 py-3 text-right">${p.qty}</td><td class="px-4 py-3 text-right font-bold ${color}">${Math.round(pnl)}</td><td class="px-4 py-3 text-center"><button onclick="removeP(${i})" class="text-red-400 cursor-pointer">✕</button></td></tr>`; }); document.getElementById('totalProfit').innerText = Math.round(total).toLocaleString(); document.getElementById('totalProfit').className = `text-2xl font-bold ${total >= 0 ? 'text-profit' : 'text-loss'}`; }
         function removeP(i) { portfolio.splice(i, 1); saveAndRender(); }
         function saveAndRender() { localStorage.setItem('pro_portfolio_v3', JSON.stringify(portfolio)); renderPortfolio(); }
         function exportData() { if (!portfolio.length) return; navigator.clipboard.writeText(JSON.stringify(portfolio)); alert("✅ 複製成功"); }
