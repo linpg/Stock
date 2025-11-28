@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v5.8 修復版</title>
+    <title>台股雙引擎儀表板 v5.9 (真實量能版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -49,7 +49,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v5.8 修復版 | 自動掃全市場 + 外資排名</p>
+            <p class="text-slate-400 text-sm mt-1">v5.9 真實量能版 | 自動掃全市場 + 外資排名</p>
         </div>
     </div>
 
@@ -209,14 +209,12 @@
         let currentMode = 'foreign';
         let currentCategory = 'all';
         let marketData = [];
-        let checkForeignInterval = null;
 
         window.onload = () => {
             renderPortfolio();
             scanMarket();
             setInterval(updatePortfolioPrices, 30000);
-            // 🔥 修復：每 3 秒檢查一次外資買進
-            checkForeignInterval = setInterval(checkForeignBuys, 3000);
+            setInterval(checkForeignBuys, 3000);
         };
 
         function switchMode(mode) {
@@ -246,7 +244,7 @@
             scanMarket();
         }
 
-        // 🔥 核心掃描：自動掃市場
+        // 🔥 核心掃描：自動掃市場 (真實量能版)
         async function scanMarket() {
             const tbody = document.getElementById('watchlistBody');
             const spinner = document.getElementById('scanSpinner');
@@ -270,8 +268,15 @@
                     const buyPowerRatio = Math.random() * 100;
                     const isBullish = quote.price > ma20;
                     const simulatedForeignBuy = isBullish && buyPowerRatio > 55 ? Math.floor(Math.random() * 500) + 50 : Math.floor(Math.random() * 100);
-                    const volumeRatio = 1 + (Math.random() * 0.8);
                     const priceChange = quote.change || 0;
+
+                    // 🔥 計算真實量能比 (今日成交量 vs 20 日均量)
+                    let volumeRatio = 1.0;
+                    if (history.length >= 20) {
+                        const ma20Vol = history.slice(-20).reduce((a, b) => a + b.volume, 0) / 20;
+                        const todayVol = history.length > 0 ? history[history.length - 1].volume : 1;
+                        volumeRatio = ma20Vol > 0 ? todayVol / ma20Vol : 1.0;
+                    }
 
                     // 🔥 綜合強度分數
                     const strengthScore = (priceChange * 10) + (buyPowerRatio / 10);
@@ -324,7 +329,7 @@
                             statusTag = '<span class="status-hot px-2 py-1 rounded text-xs">強勢</span>';
                         }
                     } else if (currentMode === 'volume') {
-                        scoreValue = stock.volumeRatio.toFixed(2);
+                        scoreValue = stock.volumeRatio.toFixed(2) + 'x';
                         if (stock.volumeRatio > 1.5) {
                             statusTag = '<span class="status-hot px-2 py-1 rounded text-xs">量能爆發</span>';
                         }
@@ -345,7 +350,7 @@
             spinner.classList.add('hidden');
         }
 
-        // 🔍 外資即時買進檢測 (修復版：獨立運行)
+        // 🔍 外資即時買進檢測
         async function checkForeignBuys() {
             const tbody = document.getElementById('foreignBuyBody');
             if(tbody.innerHTML.includes('等待')) tbody.innerHTML = '';
@@ -365,7 +370,6 @@
                             <td class="px-4 py-3 text-center"><button class="text-xs bg-cyan-900 text-cyan-300 px-2 py-1 rounded">分析</button></td>
                         </tr>`;
                     
-                    // 只在新增時加，不重複
                     if (!tbody.innerHTML.includes(stock.id)) {
                         tbody.insertAdjacentHTML('afterbegin', rowHTML);
                         if(tbody.rows.length > 30) tbody.deleteRow(-1);
