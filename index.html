@@ -393,7 +393,7 @@
             document.getElementById('alertPrice').innerText = price;
             document.getElementById('alertDesc').innerText = desc;
             modal.classList.remove('hidden');
-            try { document.getElementById('alertSound').play(); } catch(e){}
+           // try { document.getElementById('alertSound').play(); } catch(e){}
             setTimeout(() => { modal.classList.add('hidden'); }, 5000);
         }
         function closeAlert() { document.getElementById('bigOrderAlert').classList.add('hidden'); }
