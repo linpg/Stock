@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台股雙引擎儀表板 v5.14 (真實外資籌碼版)</title>
+    <title>台股雙引擎儀表板 v5.14 (完整修復版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background-color: #0f172a; color: #e2e8f0; font-family: 'Microsoft JhengHei', sans-serif; }
@@ -21,7 +21,6 @@
 
         .status-hot { background: linear-gradient(90deg, #be185d, #db2777); color: white; }
         .status-foreign { background: linear-gradient(90deg, #7c3aed, #a855f7); color: white; font-weight: bold; }
-        .status-volume { background: linear-gradient(90deg, #f59e0b, #d97706); color: white; }
 
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
@@ -44,7 +43,7 @@
     <div class="flex justify-between items-center mb-8">
         <div>
             <h1 class="text-3xl font-bold text-cyan-400">🚀 台股雙引擎儀表板</h1>
-            <p class="text-slate-400 text-sm mt-1">v5.13 真實外資籌碼版 | 所有數據 100% 真實123</p>
+            <p class="text-slate-400 text-sm mt-1">v5.14 完整修復版 | 所有數據 100% 真實</p>
         </div>
         <div id="statusIndicator" class="text-xs text-yellow-400">🔄 初始化中...</div>
     </div>
@@ -222,7 +221,7 @@
                     let history = [];
                     try { history = await fetchFinMindHistory(id); } catch(e) {}
 
-                    // 🔥 取得真實外資買超數據
+                    // 🔥 取得真實外資買超數據（FinMind）
                     let foreignBuy = 0;
                     try {
                         const today = new Date().toISOString().split('T')[0];
@@ -230,9 +229,12 @@
                         const instJson = await instRes.json();
                         if (instJson.data && instJson.data.length > 0) {
                             const lastInst = instJson.data[instJson.data.length - 1];
-                            foreignBuy = lastInst.Foreign_Investors_Buy_Sell || 0;
+                            // 🔴 FinMind 字段名確認
+                            foreignBuy = lastInst.Foreign_Investors_Buy_Sell !== undefined ? lastInst.Foreign_Investors_Buy_Sell : 0;
                         }
-                    } catch(e) { console.log("無法取得 " + id + " 的外資數據"); }
+                    } catch(e) { 
+                        console.log("無法取得 " + id + " 的外資數據: " + e.message); 
+                    }
 
                     const kdj = calculateKDJ(history);
                     const ma20 = history.length >= 20 ? history.slice(-20).reduce((a, b) => a + b.close, 0) / 20 : quote.price;
@@ -247,11 +249,11 @@
 
                     marketData.push({
                         id, name: quote.name, price: quote.price, change: priceChange, kdj,
-                        foreignBuy: foreignBuy || 0,  // 真實外資買超
-                        strengthScore: priceChange * 10 + (foreignBuy / 100),
+                        foreignBuy: Math.round(foreignBuy),  // 真實外資買超
+                        strengthScore: priceChange * 10 + (Math.abs(foreignBuy) / 100),
                         volumeRatio
                     });
-                } catch(e) { console.log("掃描 " + id + " 失敗"); }
+                } catch(e) { console.log("掃描 " + id + " 失敗: " + e.message); }
             }));
 
             console.log("✅ 掃描完成，取得 " + marketData.length + " 檔股票");
@@ -278,7 +280,7 @@
                 else score = s.volumeRatio.toFixed(2) + 'x';
                 
                 const color = s.change >= 0 ? 'text-profit' : 'text-loss';
-               tbody.innerHTML += `<tr class="hover:bg-slate-700 cursor-pointer" onclick="analyzeStock('${s.id}')"><td class="px-2 py-2">${idx+1}</td><td class="px-2 py-2"><div class="font-bold">${s.name}</div><div class="text-[10px] text-slate-500">${s.id}</div></td><td class="px-2 py-2 text-right ${color}">${s.price.toFixed(2)}</td><td class="px-2 py-2 text-center text-purple-300">${score}</td></tr>`;
+                tbody.innerHTML += `<tr class="hover:bg-slate-700 cursor-pointer" onclick="analyzeStock('${s.id}')"><td class="px-2 py-2">${idx+1}</td><td class="px-2 py-2"><div class="font-bold">${s.name}</div><div class="text-[10px] text-slate-500">${s.id}</div></td><td class="px-2 py-2 text-right ${color}">${s.price.toFixed(2)}</td><td class="px-2 py-2 text-center text-purple-300">${score}</td></tr>`;
             });
         }
 
@@ -290,11 +292,20 @@
                 if (stock.foreignBuy > 50) {  // 外資買超超過 50 張
                     const time = new Date().toLocaleTimeString();
                     if (!tbody.innerHTML.includes(stock.id)) {
-                        tbody.insertAdjacentHTML('afterbegin', `<tr class="cursor-pointer hover:bg-slate-700 hover:bg-slate-600" onclick="analyzeStock('${stock.id}'); document.querySelector('#stockInput').value = '${stock.id}'; document.querySelector('#stockInput').scrollIntoView({behavior:'smooth'});" style="cursor: pointer;"><td class="px-4 py-3">${time}</td><td class="px-4 py-3"><div class="font-bold">${stock.name}</div><div class="text-[10px] text-slate-500">${stock.id}</div></td><td class="px-4 py-3 text-right text-purple-400">${stock.foreignBuy}</td><td class="px-4 py-3 text-right">${stock.price.toFixed(2)}</td></tr>`);
+                        // 🔥 修復：點擊自動填入輸入框並分析
+                        tbody.insertAdjacentHTML('afterbegin', `<tr class="cursor-pointer hover:bg-slate-700" onclick="quickAnalyze('${stock.id}')"><td class="px-4 py-3 text-slate-400">${time}</td><td class="px-4 py-3"><div class="font-bold">${stock.name}</div><div class="text-[10px] text-slate-500">${stock.id}</div></td><td class="px-4 py-3 text-right text-purple-400">${stock.foreignBuy}</td><td class="px-4 py-3 text-right">${stock.price.toFixed(2)}</td></tr>`);
                         if (tbody.rows.length > 20) tbody.deleteRow(-1);
                     }
                 }
             });
+        }
+
+        // 🔥 新增快速分析函數
+        async function quickAnalyze(stockId) {
+            document.getElementById('stockInput').value = stockId;
+            await analyzeStock(stockId);
+            // 平滑滾動到個股診斷欄位
+            document.querySelector('.lg\\:col-span-1').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         async function analyzeStock(id = null) {
