@@ -410,4 +410,60 @@
                     document.getElementById('dVal').innerText = kdj.d.toFixed(1);
                     document.getElementById('jVal').innerText = kdj.j.toFixed(1);
                 } else {
-                    document.getElementBy
+                    document.getElementById('kVal').innerText = '50.0';
+                    document.getElementById('dVal').innerText = '50.0';
+                    document.getElementById('jVal').innerText = '50.0';
+                }
+            } catch (e) { alert("分析失敗: " + e.message); }
+        }
+
+        async function fetchQuoteSafe(id) {
+            try {
+                const res = await fetch(`https://api.fugle.tw/marketdata/v1.0/stock/intraday/quote/${id}`, { headers: { "X-API-KEY": FUGLE_KEY } });
+                const json = await res.json();
+                if (json.lastTrade) return { price: json.lastTrade.price, change: json.lastTrade.price - json.openPrice, name: json.name };
+            } catch(e) {
+                try {
+                    const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${new Date().toISOString().split('T')[0]}&token=${FINMIND_TOKEN}`);
+                    const json = await res.json();
+                    if (json.data && json.data.length > 0) {
+                        const last = json.data[json.data.length - 1];
+                        return { price: last.close, change: last.spread, name: id };
+                    }
+                } catch(e2) {}
+            }
+            return null;
+        }
+
+        async function fetchFinMindHistory(id) {
+            const start = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0];
+            const res = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${id}&start_date=${start}&token=${FINMIND_TOKEN}`);
+            const json = await res.json();
+            return json.msg === 'success' ? json.data : [];
+        }
+
+        function calculateKDJ(h) {
+            if (!h || h.length < 9) return null;
+            let k = 50, d = 50;
+            for (let i = Math.max(0, h.length - 20); i < h.length; i++) {
+                const slice = h.slice(Math.max(0, i - 8), i + 1);
+                const c = h[i].close, mx = Math.max(...slice.map(x => x.max)), mn = Math.min(...slice.map(x => x.min));
+                let rsv = mx === mn ? 50 : ((c - mn) / (mx - mn)) * 100;
+                k = (2/3) * k + (1/3) * rsv;
+                d = (2/3) * d + (1/3) * k;
+            }
+            return { k, d, j: 3 * k - 2 * d };
+        }
+
+        function openAddModal() { if (!currentStock) return alert("請先分析一檔股票"); document.getElementById('modalStockName').value = `${currentStock.name}`; document.getElementById('modalCost').value = currentStock.price; document.getElementById('addPortfolioModal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('addPortfolioModal').classList.add('hidden'); }
+        function confirmAddPortfolio() { const qty = +document.getElementById('modalQty').value; const cost = +document.getElementById('modalCost').value; if (!qty || !cost) return; portfolio.push({ id: currentStock.id, name: currentStock.name, cost, qty, curr: currentStock.price }); saveAndRender(); closeModal(); }
+        function renderPortfolio() { const tbody = document.getElementById('portfolioBody'); let total = 0; tbody.innerHTML = ''; portfolio.forEach((p, i) => { const pnl = (p.curr - p.cost) * p.qty * 1000; total += pnl; const color = pnl >= 0 ? 'text-profit' : 'text-loss'; tbody.innerHTML += `<tr><td class="px-4 py-3">${p.name}</td><td class="px-4 py-3 text-right">${p.cost.toFixed(2)}</td><td class="px-4 py-3 text-right">${p.curr.toFixed(2)}</td><td class="px-4 py-3 text-right">${p.qty}</td><td class="px-4 py-3 text-right font-bold ${color}">${Math.round(pnl)}</td><td class="px-4 py-3 text-center"><button onclick="removeP(${i})" class="text-red-400 cursor-pointer">✕</button></td></tr>`; }); document.getElementById('totalProfit').innerText = Math.round(total).toLocaleString(); document.getElementById('totalProfit').className = `text-2xl font-bold ${total >= 0 ? 'text-profit' : 'text-loss'}`; }
+        function removeP(i) { portfolio.splice(i, 1); saveAndRender(); }
+        function saveAndRender() { localStorage.setItem('pro_portfolio_v3', JSON.stringify(portfolio)); renderPortfolio(); }
+        function exportData() { if (!portfolio.length) return; navigator.clipboard.writeText(JSON.stringify(portfolio)); alert("✅ 複製成功"); }
+        function importData() { const code = prompt("貼上代碼："); if (code) { try { portfolio = JSON.parse(code); saveAndRender(); alert("✅ 還原成功"); } catch (e) { alert("❌ 錯誤"); } } }
+        async function updatePortfolioPrices() { for (let p of portfolio) { try { const q = await fetchQuoteSafe(p.id); if (q) p.curr = q.price; } catch(e){} } saveAndRender(); }
+    </script>
+</body>
+</html>
